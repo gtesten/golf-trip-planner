@@ -2,7 +2,7 @@ const { useState, useEffect, useMemo } = React;
 
 // ✅ Put your Supabase URL + anon key here
 const SUPABASE_URL = "https://qnfwckmwbudvuijqlkns.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFuZndja213YnVkdnVpanFsa25zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzOTI4MzksImV4cCI6MjA4MDk2ODgzOX0.dwMCVUoOsk2RxEeOI93pvmejaKwGDM9k6hxbrfPHgFs";
+const SUPABASE_ANON_KEY = "sb_publishable_y5qYE-uYPTtNrdM0vI5tJA_V8IA29U1";
 
 const { createClient } = window.supabase;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
