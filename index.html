@@ -7,15 +7,143 @@
   <style>
     :root {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color-scheme: dark;
+      color-scheme: light dark;
     }
     * {
       box-sizing: border-box;
     }
+
     body {
       margin: 0;
       background: radial-gradient(circle at top, #020617 0%, #020617 30%, #020b16 100%);
       color: #e5e7eb;
+    }
+
+    /* Light theme overrides */
+    body.light-theme {
+      background: radial-gradient(circle at top, #e5f4ff 0%, #e5f4ff 30%, #f4f4f5 100%);
+      color: #020617;
+    }
+    body.light-theme .topbar {
+      background: linear-gradient(90deg, #ffffff, #eef2ff 40%, #ffffff);
+      border-bottom-color: rgba(148, 163, 184, 0.4);
+    }
+    body.light-theme .topbar-subtitle {
+      color: #4b5563;
+    }
+    body.light-theme .topbar-right {
+      color: #6b7280;
+    }
+    body.light-theme .topbar-pill {
+      background: #f9fafb;
+      border-color: rgba(148, 163, 184, 0.8);
+    }
+
+    body.light-theme .app {
+      background: transparent;
+    }
+    body.light-theme .sidebar {
+      background: linear-gradient(180deg, #ffffff 0%, #f9fafb 40%, #e5e7eb 100%);
+      border-right-color: rgba(148, 163, 184, 0.5);
+    }
+    body.light-theme .sidebar h1 {
+      color: #020617;
+    }
+    body.light-theme .sidebar small {
+      color: #6b7280;
+    }
+    body.light-theme .trip-item {
+      background: radial-gradient(circle at top left, #f9fafb, #eef2ff);
+      border-color: rgba(209, 213, 219, 1);
+    }
+    body.light-theme .trip-item:hover {
+      border-color: rgba(22, 163, 74, 0.9);
+    }
+    body.light-theme .trip-item.active {
+      background: linear-gradient(135deg, #bbf7d0, #4ade80);
+      border-color: rgba(22, 163, 74, 1);
+      box-shadow: 0 0 0 1px rgba(22, 163, 74, 0.6), 0 8px 22px rgba(22, 163, 74, 0.4);
+    }
+    body.light-theme .trip-item span.meta {
+      color: #4b5563;
+    }
+    body.light-theme .sidebar-footer {
+      color: #6b7280;
+      border-top-color: rgba(148, 163, 184, 0.7);
+    }
+
+    body.light-theme .main {
+      background:
+        radial-gradient(circle at 20% 0%, rgba(34, 197, 94, 0.08), transparent 55%),
+        radial-gradient(circle at 80% 0%, rgba(37, 99, 235, 0.09), transparent 55%),
+        #f4f4f5;
+    }
+    body.light-theme .card {
+      background: radial-gradient(circle at top left, #ffffff, #eef2ff);
+      border-color: rgba(191, 219, 254, 1);
+      box-shadow: 0 14px 35px rgba(148, 163, 184, 0.5);
+    }
+    body.light-theme .card::before {
+      background-image: radial-gradient(circle at top left, rgba(34, 197, 94, 0.15), transparent 55%);
+    }
+    body.light-theme label {
+      color: #4b5563;
+    }
+    body.light-theme input,
+    body.light-theme textarea,
+    body.light-theme select {
+      background: #ffffff;
+      border-color: rgba(209, 213, 219, 1);
+      color: #111827;
+    }
+    body.light-theme input:focus,
+    body.light-theme textarea:focus,
+    body.light-theme select:focus {
+      border-color: #22c55e;
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.4);
+    }
+    body.light-theme .table-scroll {
+      border-color: rgba(191, 219, 254, 1);
+      background: #ffffff;
+    }
+    body.light-theme th {
+      background: #eff6ff;
+      color: #111827;
+      border-bottom-color: rgba(209, 213, 219, 1);
+    }
+    body.light-theme td {
+      border-bottom-color: rgba(209, 213, 219, 1);
+    }
+    body.light-theme tbody tr:nth-child(even) {
+      background-color: rgba(243, 244, 246, 0.9);
+    }
+    body.light-theme .summary-line span.label {
+      color: #4b5563;
+    }
+    body.light-theme .summary-line span.value {
+      color: #111827;
+    }
+    body.light-theme .badge {
+      border-color: rgba(59, 130, 246, 0.7);
+      color: #1d4ed8;
+    }
+    body.light-theme .pill {
+      background: #f9fafb;
+      border-color: rgba(148, 163, 184, 0.9);
+      color: #111827;
+    }
+    body.light-theme .pill .dot {
+      box-shadow: 0 0 5px rgba(34, 197, 94, 0.9);
+    }
+    body.light-theme .empty-state {
+      color: #6b7280;
+    }
+    body.light-theme .btn-secondary {
+      background: #f9fafb;
+    }
+    body.light-theme .btn-danger {
+      color: #b91c1c;
+      border-color: rgba(248, 113, 113, 1);
     }
 
     /* Top brand bar */
@@ -41,7 +169,7 @@
       height: 30px;
       border-radius: 999px;
       background:
-        radial-gradient(circle at 30% 25%, #facc15 0, #facc15 25%, transparent 26%) ,
+        radial-gradient(circle at 30% 25%, #facc15 0, #facc15 25%, transparent 26%),
         radial-gradient(circle at 70% 60%, #14532d 0, #22c55e 60%, #166534 100%);
       box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.7),
                   0 0 16px rgba(22, 163, 74, 0.7);
@@ -89,6 +217,19 @@
       border-radius: 999px;
       background: #22c55e;
       box-shadow: 0 0 8px rgba(34, 197, 94, 0.9);
+    }
+
+    .theme-toggle-btn {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: transparent;
+      color: inherit;
+      padding: 0.18rem 0.6rem;
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      cursor: pointer;
     }
 
     .app {
@@ -352,7 +493,9 @@
       font-size: 0.74rem;
       color: #cbd5e1;
     }
-    input, textarea, select {
+    input,
+    textarea,
+    select {
       background: rgba(15, 23, 42, 0.95);
       border-radius: 0.55rem;
       border: 1px solid rgba(51, 65, 85, 0.9);
@@ -362,7 +505,9 @@
       outline: none;
       width: 100%;
     }
-    input:focus, textarea:focus, select:focus {
+    input:focus,
+    textarea:focus,
+    select:focus {
       border-color: #22c55e;
       box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
     }
@@ -380,7 +525,8 @@
       font-size: 0.78rem;
       margin-top: 0.25rem;
     }
-    th, td {
+    th,
+    td {
       border-bottom: 1px solid rgba(31, 41, 55, 0.95);
       padding: 0.3rem 0.35rem;
       text-align: left;
@@ -445,7 +591,8 @@
       font-size: 0.9rem;
     }
 
-    .scoreboard-table td, .scoreboard-table th {
+    .scoreboard-table td,
+    .scoreboard-table th {
       border-bottom: 1px solid rgba(31, 41, 55, 0.9);
     }
 
@@ -460,6 +607,53 @@
         justify-content: space-between;
       }
     }
+
+    /* New Trip Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+    }
+    body.light-theme .modal-backdrop {
+      background: rgba(15, 23, 42, 0.35);
+    }
+    .modal {
+      background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 1));
+      border-radius: 1rem;
+      padding: 1rem 1.1rem 0.9rem;
+      border: 1px solid rgba(59, 130, 246, 0.8);
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.9);
+    }
+    body.light-theme .modal {
+      background: #ffffff;
+      border-color: rgba(59, 130, 246, 0.7);
+      box-shadow: 0 18px 40px rgba(148, 163, 184, 0.7);
+    }
+    .modal-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+    .modal-sub {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      margin-bottom: 0.7rem;
+    }
+    body.light-theme .modal-sub {
+      color: #6b7280;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 0.7rem;
+    }
   </style>
 
   <!-- React / ReactDOM / Babel -->
@@ -473,7 +667,7 @@
     <div class="topbar-logo" aria-hidden="true"></div>
     <div>
       <div class="topbar-title">Golf Trip Planner</div>
-      <div class="topbar-subtitle">Buddies trips · budgets · leaderboards</div>
+      <div class="topbar-subtitle">Plan buddies trips, budgets, pairings and scoreboards in one place.</div>
     </div>
   </div>
   <div class="topbar-right">
@@ -481,7 +675,10 @@
       <span class="topbar-pill-dot"></span>
       <span>Local-only data · no login</span>
     </div>
-    <span>v1.1</span>
+    <button id="theme-toggle-placeholder" class="theme-toggle-btn" type="button">
+      🌙 Theme
+    </button>
+    <span>v1.2</span>
   </div>
 </div>
 
@@ -491,6 +688,7 @@
   const { useState, useEffect, useMemo } = React;
 
   const STORAGE_KEY = "golfTripPlannerTrips_v2";
+  const THEME_KEY = "golfTripPlannerTheme";
 
   function loadTripsFromStorage() {
     try {
@@ -520,20 +718,20 @@
     }
   }
 
-  function createNewTrip() {
+  function createNewTrip(initial = {}) {
     const id = Date.now().toString();
     return {
       id,
-      name: "New Golf Trip",
-      destination: "",
-      startDate: "",
-      endDate: "",
+      name: initial.name || "New Golf Trip",
+      destination: initial.destination || "",
+      startDate: initial.startDate || "",
+      endDate: initial.endDate || "",
       notes: "",
       players: [],
       rounds: [],
       lodging: [],
       teams: [],
-      scores: {} // scores[roundId][playerId] = { strokes: "72" }
+      scores: {}
     };
   }
 
@@ -573,13 +771,13 @@
     URL.revokeObjectURL(url);
   }
 
-  function Sidebar({ trips, selectedId, onSelectTrip, onAddTrip, onDeleteTrip }) {
+  function Sidebar({ trips, selectedId, onSelectTrip, onOpenNewTripModal, onDeleteTrip }) {
     return (
       <aside className="sidebar">
         <h1>Your Trips</h1>
-        <small>Create a trip for each buddies trip or annual run.</small>
+        <small>Create a trip for each buddies weekend, annual run, or golf getaway.</small>
 
-        <button className="btn" onClick={onAddTrip}>
+        <button className="btn" onClick={onOpenNewTripModal}>
           <span className="icon">＋</span> New Trip
         </button>
 
@@ -688,7 +886,7 @@
               <textarea
                 value={trip.notes}
                 onChange={(e) => update("notes", e.target.value)}
-                placeholder="7 guys, 4 rounds, shared cabin, note rain backup plans, etc."
+                placeholder="7 guys, 4 rounds, shared cabin, rain backup plans, side games, etc."
               />
             </div>
           </div>
@@ -1384,7 +1582,7 @@
                 <thead>
                   <tr>
                     <th>Team</th>
-                    <th>Color</sup></th>
+                    <th>Color</th>
                     <th>Players</th>
                     <th>Total Strokes</th>
                   </tr>
@@ -1415,12 +1613,103 @@
     );
   }
 
+  function NewTripModal({ isOpen, onClose, onCreate }) {
+    const [draft, setDraft] = useState({
+      name: "",
+      destination: "",
+      startDate: "",
+      endDate: ""
+    });
+
+    useEffect(() => {
+      if (isOpen) {
+        setDraft({ name: "", destination: "", startDate: "", endDate: "" });
+      }
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    function update(field, value) {
+      setDraft((d) => ({ ...d, [field]: value }));
+    }
+
+    function handleCreate() {
+      if (!draft.name.trim()) {
+        alert("Please enter a trip name.");
+        return;
+      }
+      onCreate(draft);
+    }
+
+    return (
+      <div className="modal-backdrop">
+        <div className="modal">
+          <div className="modal-title">Create New Trip</div>
+          <div className="modal-sub">
+            Start with the basics. You can always fine-tune details later.
+          </div>
+          <div className="field-row">
+            <div className="field">
+              <label>Trip Name</label>
+              <input
+                value={draft.name}
+                onChange={(e) => update("name", e.target.value)}
+                placeholder="Forest Dunes 2026"
+              />
+            </div>
+          </div>
+          <div className="field-row">
+            <div className="field">
+              <label>Destination / Region</label>
+              <input
+                value={draft.destination}
+                onChange={(e) => update("destination", e.target.value)}
+                placeholder="Roscommon, MI"
+              />
+            </div>
+          </div>
+          <div className="field-row">
+            <div className="field">
+              <label>Start Date (optional)</label>
+              <input
+                type="date"
+                value={draft.startDate}
+                onChange={(e) => update("startDate", e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>End Date (optional)</label>
+              <input
+                type="date"
+                value={draft.endDate}
+                onChange={(e) => update("endDate", e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button className="btn-secondary" type="button" onClick={onClose}>
+              Cancel
+            </button>
+            <button className="btn" type="button" onClick={handleCreate}>
+              Create Trip
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   function App() {
     const [trips, setTrips] = useState(() => loadTripsFromStorage());
     const [selectedId, setSelectedId] = useState(() => {
       const stored = loadTripsFromStorage();
       return stored[0]?.id || null;
     });
+    const [theme, setTheme] = useState(() => {
+      if (typeof window === "undefined") return "dark";
+      return localStorage.getItem(THEME_KEY) || "dark";
+    });
+    const [showNewTripModal, setShowNewTripModal] = useState(false);
 
     useEffect(() => {
       saveTripsToStorage(trips);
@@ -1429,12 +1718,31 @@
       }
     }, [trips, selectedId]);
 
+    useEffect(() => {
+      if (theme === "light") {
+        document.body.classList.add("light-theme");
+      } else {
+        document.body.classList.remove("light-theme");
+      }
+      localStorage.setItem(THEME_KEY, theme);
+
+      // hook the placeholder theme toggle button in topbar
+      const btn = document.getElementById("theme-toggle-placeholder");
+      if (btn) {
+        btn.onclick = () => {
+          setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+        };
+        btn.textContent = theme === "dark" ? "🌙 Dark" : "☀ Light";
+      }
+    }, [theme]);
+
     const selectedTrip = trips.find((t) => t.id === selectedId) || null;
 
-    function handleAddTrip() {
-      const newTrip = createNewTrip();
+    function handleAddTripFromDraft(draft) {
+      const newTrip = createNewTrip(draft);
       setTrips((prev) => [...prev, newTrip]);
       setSelectedId(newTrip.id);
+      setShowNewTripModal(false);
     }
 
     function handleDeleteTrip(id) {
@@ -1462,68 +1770,75 @@
     }
 
     return (
-      <div className="app">
-        <Sidebar
-          trips={trips}
-          selectedId={selectedId}
-          onSelectTrip={setSelectedId}
-          onAddTrip={handleAddTrip}
-          onDeleteTrip={handleDeleteTrip}
+      <>
+        <div className="app">
+          <Sidebar
+            trips={trips}
+            selectedId={selectedId}
+            onSelectTrip={setSelectedId}
+            onOpenNewTripModal={() => setShowNewTripModal(true)}
+            onDeleteTrip={handleDeleteTrip}
+          />
+          <main className="main">
+            {!selectedTrip ? (
+              <div className="empty-state">
+                <p>
+                  Create your first trip to start planning. You’ll be able to add players, rounds,
+                  lodging, teams, and see a live budget estimate.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="main-header">
+                  <div className="main-header-left">
+                    <h2>{selectedTrip.name || "Untitled Trip"}</h2>
+                    <p>
+                      {selectedTrip.destination || "Destination TBA"} ·{" "}
+                      {selectedTrip.startDate || "?"} → {selectedTrip.endDate || "?"}
+                    </p>
+                  </div>
+                  <div className="main-header-right">
+                    <span className="pill">
+                      <span className="dot" /> Auto-saved to this browser
+                    </span>
+                    <button className="btn-secondary" onClick={duplicateTrip}>
+                      ⧉ Duplicate Trip
+                    </button>
+                  </div>
+                </div>
+
+                <div className="section-title">Trip setup</div>
+                <div className="grid">
+                  <BasicInfo trip={selectedTrip} onChange={updateTrip} />
+                  <BudgetCard trip={selectedTrip} />
+                </div>
+
+                <div className="section-title">Golf & group</div>
+                <div className="grid">
+                  <PlayersCard trip={selectedTrip} onChange={updateTrip} />
+                  <RoundsCard trip={selectedTrip} onChange={updateTrip} />
+                </div>
+
+                <div className="section-title">Stay & exports</div>
+                <div className="grid">
+                  <LodgingCard trip={selectedTrip} onChange={updateTrip} />
+                  <ExportCard trip={selectedTrip} />
+                </div>
+
+                <div className="section-title">Games & leaderboard</div>
+                <div className="grid">
+                  <TeamsAndScoringCard trip={selectedTrip} onChange={updateTrip} />
+                </div>
+              </>
+            )}
+          </main>
+        </div>
+        <NewTripModal
+          isOpen={showNewTripModal}
+          onClose={() => setShowNewTripModal(false)}
+          onCreate={handleAddTripFromDraft}
         />
-        <main className="main">
-          {!selectedTrip ? (
-            <div className="empty-state">
-              <p>
-                Create your first trip to start planning. You’ll be able to add players, rounds,
-                lodging, teams, and see a live budget estimate.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="main-header">
-                <div className="main-header-left">
-                  <h2>{selectedTrip.name || "Untitled Trip"}</h2>
-                  <p>
-                    {selectedTrip.destination || "Destination TBA"} ·{" "}
-                    {selectedTrip.startDate || "?"} → {selectedTrip.endDate || "?"}
-                  </p>
-                </div>
-                <div className="main-header-right">
-                  <span className="pill">
-                    <span className="dot" /> Auto-saved to this browser
-                  </span>
-                  <button className="btn-secondary" onClick={duplicateTrip}>
-                    ⧉ Duplicate Trip
-                  </button>
-                </div>
-              </div>
-
-              <div className="section-title">Trip setup</div>
-              <div className="grid">
-                <BasicInfo trip={selectedTrip} onChange={updateTrip} />
-                <BudgetCard trip={selectedTrip} />
-              </div>
-
-              <div className="section-title">Golf & group</div>
-              <div className="grid">
-                <PlayersCard trip={selectedTrip} onChange={updateTrip} />
-                <RoundsCard trip={selectedTrip} onChange={updateTrip} />
-              </div>
-
-              <div className="section-title">Stay & exports</div>
-              <div className="grid">
-                <LodgingCard trip={selectedTrip} onChange={updateTrip} />
-                <ExportCard trip={selectedTrip} />
-              </div>
-
-              <div className="section-title">Games & leaderboard</div>
-              <div className="grid">
-                <TeamsAndScoringCard trip={selectedTrip} onChange={updateTrip} />
-              </div>
-            </>
-          )}
-        </main>
-      </div>
+      </>
     );
   }
 
