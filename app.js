@@ -1,10 +1,23 @@
 const { useState, useEffect, useMemo } = React;
 
 // ✅ Put your Supabase URL + anon key here
+const { createClient } = window.supabase;
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 const SUPABASE_URL = "https://qnfwckmwbudvuijqlkns.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_y5qYE-uYPTtNrdM0vI5tJA_V8IA29U1";
 
-const { createClient } = window.supabase;
+// Grab the global injected by the CDN
+const supaGlobal = window.supabase;
+
+// Optional: helpful log
+console.log("Supabase global:", supaGlobal);
+
+if (!supaGlobal) {
+  throw new Error("Supabase global is missing. Check the <script src=\"https://unpkg.com/@supabase/supabase-js@2\"></script> tag and its order.");
+}
+
+const { createClient } = supaGlobal;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 
