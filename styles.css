@@ -155,14 +155,6 @@ body.light-theme .topbar-pill {
 }
 
 /* ==========
-   Auth Bar
-   ========== */
-
-.app-auth-bar {
-  /* Not used; AuthBar uses inline styles in JS, but we keep a helper class if needed */
-}
-
-/* ==========
    Layout Shell
    ========== */
 
@@ -817,7 +809,7 @@ body.light-theme .nav-tab.active {
 }
 
 /* ==========
-   Modal (if you add one later)
+   Modal (reserved for later features)
    ========== */
 
 .modal-backdrop {
