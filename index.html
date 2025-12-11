@@ -5,7 +5,6 @@
   <title>Golf Trip Planner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Simple baseline styling -->
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -67,11 +66,6 @@
     button.secondary {
       background: #e5e7eb;
       color: #111827;
-    }
-
-    button.danger {
-      background: #dc2626;
-      color: white;
     }
 
     button:disabled {
@@ -238,7 +232,6 @@
           <div>
             <label for="tripName">Trip Name</label>
             <input type="text" id="tripName" placeholder="Forest Dunes 2026" />
-            <div class="hint">e.g., “Boyne 2026 – Guys Trip”</div>
           </div>
           <div>
             <label for="tripLocation">Location</label>
@@ -254,97 +247,46 @@
           </div>
         </div>
         <p class="hint">
-          When you hit <strong>Save Trip</strong>, these details and all tab data will be saved to the <code>trips</code> table
-          in Supabase using a UUID <code>public_id</code> (no more bigint errors).
+          Click <strong>Save Trip</strong> to create or update a trip record in Supabase. Your browser keeps a UUID
+          <code>public_id</code> so you can reload it later.
         </p>
       </div>
 
       <!-- Itinerary -->
       <div class="tab-panel" id="itineraryTab">
-        <label for="itineraryData">Itinerary Data (JSON or free text)</label>
-        <textarea id="itineraryData" placeholder='Example:
-[
-  {"day": 1, "course": "Forest Dunes", "tee_time": "09:00", "format": "Best Ball"},
-  {"day": 1, "course": "The Loop", "tee_time": "14:30", "format": "Alt Shot"}
-]'></textarea>
-        <div class="hint">
-          You can paste structured JSON from your sheets, or just keep this as annotated notes.
-          Stored in <code>trips.itinerary_data</code>.
-        </div>
+        <label for="itineraryData">Itinerary Data</label>
+        <textarea id="itineraryData" placeholder='Round-by-round plan, or JSON if you prefer.'></textarea>
+        <div class="hint">Stored in <code>trips.itinerary_data</code>.</div>
       </div>
 
       <!-- Pairings & Scores -->
       <div class="tab-panel" id="pairingsTab">
-        <label for="pairingsData">Pairings &amp; Scores Data</label>
-        <textarea id="pairingsData" placeholder='Example:
-{
-  "players": ["Glenn", "Mike", "Dave", "Chris"],
-  "rounds": [
-    {
-      "day": 1,
-      "course": "Forest Dunes",
-      "pairings": [
-        ["Glenn", "Mike"],
-        ["Dave", "Chris"]
-      ],
-      "scores": {
-        "Glenn": 78,
-        "Mike": 82,
-        "Dave": 80,
-        "Chris": 85
-      }
-    }
-  ]
-}'></textarea>
-        <div class="hint">
-          Paste JSON from a Google Sheet export, or just free-form notes.
-          Stored in <code>trips.pairings_data</code>.
-        </div>
+        <label for="pairingsData">Pairings &amp; Scores</label>
+        <textarea id="pairingsData" placeholder='Pairings and scores (free text or JSON).'></textarea>
+        <div class="hint">Stored in <code>trips.pairings_data</code>.</div>
       </div>
 
       <!-- Expenses & Docs -->
       <div class="tab-panel" id="expensesTab">
         <label for="expensesData">Expenses &amp; Docs</label>
-        <textarea id="expensesData" placeholder='Example:
-{
-  "budget": {
-    "lodging": 2600,
-    "golf": 1400,
-    "meals": 800,
-    "travel": 1200
-  },
-  "docs": [
-    {"label": "Res #12345 – Forest Dunes", "url": "https://..."},
-    {"label": "Res #67890 – The Loop", "url": "https://..."}
-  ]
-}'></textarea>
-        <div class="hint">
-          Store budget numbers, receipts, and doc links here. Stored in <code>trips.expenses_data</code>.
-        </div>
+        <textarea id="expensesData" placeholder='Budget, receipts, confirmation numbers, links, etc.'></textarea>
+        <div class="hint">Stored in <code>trips.expenses_data</code>.</div>
       </div>
 
       <!-- Sharing -->
       <div class="tab-panel" id="sharingTab">
-        <label for="sharingData">Sharing Settings / Notes</label>
-        <textarea id="sharingData" placeholder='Example:
-{
-  "organizer_email": "you@example.com",
-  "share_link": "https://gtesten.github.io/golf-trip-planner/?trip=...",
-  "notes": "Venmo @GlennTesten for lodging by 7/15. Final pairings will be posted the week before."
-}'></textarea>
-        <div class="hint">
-          Any info you use when sending this trip to the group goes here. Stored in <code>trips.sharing_data</code>.
-        </div>
+        <label for="sharingData">Sharing Notes</label>
+        <textarea id="sharingData" placeholder='What you send to the group, share links, Venmo notes, etc.'></textarea>
+        <div class="hint">Stored in <code>trips.sharing_data</code>.</div>
       </div>
     </section>
 
     <footer>
-      Trip ID in this browser is stored as a UUID <code>public_id</code> in
-      <code>localStorage["currentTripPublicId"]</code>.
+      Current trip UUID is stored in <code>localStorage["currentTripPublicId"]</code>.
     </footer>
   </main>
 
-  <!-- Supabase JS v2 CDN -->
+  <!-- Supabase JS v2 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Your app code -->
   <script src="app.js"></script>
