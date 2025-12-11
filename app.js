@@ -1,5 +1,5 @@
 // app.js
-// Complete, self-contained Supabase + anonymous auth + trips/public_id setup
+// Minimal, “safe” version with extra logging so we know it's actually running.
 
 'use strict';
 
@@ -7,21 +7,26 @@
 // 1. Supabase Client Setup
 // ===============================
 
-// TODO: replace these with your actual Supabase project values
-const SUPABASE_URL = 'hhttps://qnfwckmwbudvuijqlkns.supabase.co"';
+// TODO: REPLACE THESE with your actual values:
+const SUPABASE_URL = 'https://qnfwckmwbudvuijqlkns.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_y5qYE-uYPTtNrdM0vI5tJA_V8IA29U1';
 
-// Use the global supabase object from the CDN script
-const { createClient } = window.supabase;
+// Quick sanity log
+console.log('[GolfTripPlanner] app.js loaded');
 
-// Single global client
+if (!window.supabase) {
+  console.error('[GolfTripPlanner] window.supabase is not defined. Check the Supabase <script> tag order.');
+}
+
+// Use global supabase object
+const { createClient } = window.supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Global state: current trip's UUID (trips.public_id)
+// Current trip UUID (trips.public_id)
 let currentTripPublicId = null;
 
 // ===============================
-// 2. Status Bar Helpers
+// 2. Status Helpers
 // ===============================
 
 function setStatus(text, mode = 'idle') {
@@ -33,20 +38,9 @@ function setStatus(text, mode = 'idle') {
 
   statusDot.classList.remove('ok', 'error', 'loading');
 
-  switch (mode) {
-    case 'ok':
-      statusDot.classList.add('ok');
-      break;
-    case 'error':
-      statusDot.classList.add('error');
-      break;
-    case 'loading':
-      statusDot.classList.add('loading');
-      break;
-    default:
-      // idle (gray)
-      break;
-  }
+  if (mode === 'ok') statusDot.classList.add('ok');
+  else if (mode === 'error') statusDot.classList.add('error');
+  else if (mode === 'loading') statusDot.classList.add('loading');
 }
 
 // ===============================
@@ -58,10 +52,10 @@ function loadStoredTripId() {
     const stored = localStorage.getItem('currentTripPublicId');
     if (stored && typeof stored === 'string' && stored.trim() !== '') {
       currentTripPublicId = stored;
-      console.info('Loaded stored trip public_id:', currentTripPublicId);
+      console.log('[GolfTripPlanner] Loaded stored trip id:', currentTripPublicId);
     }
   } catch (e) {
-    console.warn('Could not read currentTripPublicId from localStorage:', e);
+    console.warn('[GolfTripPlanner] Could not read currentTripPublicId:', e);
   }
 }
 
@@ -70,7 +64,7 @@ function storeCurrentTripId(publicId) {
   try {
     localStorage.setItem('currentTripPublicId', publicId);
   } catch (e) {
-    console.warn('Could not write currentTripPublicId to localStorage:', e);
+    console.warn('[GolfTripPlanner] Could not write currentTripPublicId:', e);
   }
 }
 
@@ -85,7 +79,7 @@ async function ensureAnonymousSession() {
     await supabaseClient.auth.getSession();
 
   if (sessionError) {
-    console.error('Error getting session:', sessionError);
+    console.error('[GolfTripPlanner] getSession error:', sessionError);
   }
 
   if (sessionData && sessionData.session) {
@@ -93,22 +87,22 @@ async function ensureAnonymousSession() {
     return;
   }
 
-  // No session -> sign in anonymously
   setStatus('Signing in anonymously…', 'loading');
+
   const { data, error } = await supabaseClient.auth.signInAnonymously();
 
   if (error) {
-    console.error('Error signing in anonymously:', error);
-    setStatus('Anon auth failed – check RLS/policies.', 'error');
+    console.error('[GolfTripPlanner] signInAnonymously error:', error);
+    setStatus('Anon auth failed – check console.', 'error');
     return;
   }
 
-  console.info('Anonymous session started:', data);
+  console.log('[GolfTripPlanner] Anonymous session started:', data);
   setStatus('Anonymous session active', 'ok');
 }
 
 // ===============================
-// 5. UI ↔ Data Helpers
+// 5. UI ↔ Data
 // ===============================
 
 function collectTripDataFromUI() {
@@ -162,7 +156,6 @@ function populateUIFromTripRow(tripRow) {
 // 6. Supabase – Trips CRUD
 // ===============================
 
-// CREATE
 async function createNewTripAndLoad() {
   setStatus('Creating new trip…', 'loading');
 
@@ -179,7 +172,6 @@ async function createNewTripAndLoad() {
       pairings_data: tripData.pairings_data,
       expenses_data: tripData.expenses_data,
       sharing_data: tripData.sharing_data,
-      // Note: do NOT send `id`; bigint PK stays internal.
     })
     .select(
       'public_id, name, location, start_date, end_date, itinerary_data, pairings_data, expenses_data, sharing_data'
@@ -187,7 +179,7 @@ async function createNewTripAndLoad() {
     .single();
 
   if (error) {
-    console.error('Error creating trip:', error);
+    console.error('[GolfTripPlanner] Error creating trip:', error);
     setStatus('Error creating trip – see console.', 'error');
     alert('Error creating trip. Check the console for details.');
     return;
@@ -197,14 +189,13 @@ async function createNewTripAndLoad() {
   storeCurrentTripId(publicId);
   populateUIFromTripRow(data);
 
-  console.info('New trip created with public_id:', publicId);
+  console.log('[GolfTripPlanner] New trip created with public_id:', publicId);
   setStatus('New trip created & loaded.', 'ok');
 }
 
-// LOAD
 async function loadTripFromSupabase(publicId) {
   if (!publicId) {
-    console.warn('loadTripFromSupabase called without publicId.');
+    console.warn('[GolfTripPlanner] loadTripFromSupabase called without publicId');
     return;
   }
 
@@ -215,11 +206,11 @@ async function loadTripFromSupabase(publicId) {
     .select(
       'public_id, name, location, start_date, end_date, itinerary_data, pairings_data, expenses_data, sharing_data'
     )
-    .eq('public_id', publicId) // ✅ use UUID public_id, not bigint id
+    .eq('public_id', publicId)
     .single();
 
   if (error) {
-    console.error('Error loading trip:', error);
+    console.error('[GolfTripPlanner] Error loading trip:', error);
     setStatus('Error loading trip – see console.', 'error');
     alert('Error loading trip. Check the console for details.');
     return;
@@ -228,17 +219,15 @@ async function loadTripFromSupabase(publicId) {
   storeCurrentTripId(data.public_id);
   populateUIFromTripRow(data);
 
-  console.info('Loaded trip:', data.public_id);
+  console.log('[GolfTripPlanner] Loaded trip:', data.public_id);
   setStatus('Trip loaded from Supabase.', 'ok');
 }
 
-// SAVE (UPDATE)
 async function saveCurrentTrip() {
   const tripData = collectTripDataFromUI();
 
-  // If we don't yet have a trip, create a new one.
   if (!currentTripPublicId) {
-    // This will also update UI + status
+    // No trip yet – create one
     await createNewTripAndLoad();
     return;
   }
@@ -257,21 +246,21 @@ async function saveCurrentTrip() {
       expenses_data: tripData.expenses_data,
       sharing_data: tripData.sharing_data,
     })
-    .eq('public_id', currentTripPublicId); // ✅ UUID filter
+    .eq('public_id', currentTripPublicId);
 
   if (error) {
-    console.error('Error saving trip:', error);
+    console.error('[GolfTripPlanner] Error saving trip:', error);
     setStatus('Error saving trip – see console.', 'error');
     alert('Error saving trip. Check the console for details.');
     return;
   }
 
-  console.info('Trip saved:', currentTripPublicId);
+  console.log('[GolfTripPlanner] Trip saved:', currentTripPublicId);
   setStatus('Trip saved successfully.', 'ok');
 }
 
 // ===============================
-// 7. Tab Switching UI
+// 7. Tabs
 // ===============================
 
 function setupTabs() {
@@ -293,7 +282,7 @@ function setupTabs() {
 }
 
 // ===============================
-// 8. Button Wiring
+// 8. Buttons
 // ===============================
 
 function setupButtons() {
@@ -304,25 +293,24 @@ function setupButtons() {
   const debugBtn = document.getElementById('debugBtn');
 
   if (newBtn) {
-    newBtn.addEventListener('click', async () => {
-      // Optional: confirm if user might overwrite unsaved changes.
-      await createNewTripAndLoad();
+    newBtn.addEventListener('click', () => {
+      createNewTripAndLoad();
     });
   }
 
   if (saveBtn) {
-    saveBtn.addEventListener('click', async () => {
-      await saveCurrentTrip();
+    saveBtn.addEventListener('click', () => {
+      saveCurrentTrip();
     });
   }
 
   if (reloadBtn) {
-    reloadBtn.addEventListener('click', async () => {
+    reloadBtn.addEventListener('click', () => {
       if (!currentTripPublicId) {
         alert('No current trip ID stored. Create or save a trip first.');
         return;
       }
-      await loadTripFromSupabase(currentTripPublicId);
+      loadTripFromSupabase(currentTripPublicId);
     });
   }
 
@@ -331,7 +319,7 @@ function setupButtons() {
       try {
         localStorage.removeItem('currentTripPublicId');
       } catch (e) {
-        console.warn('Error clearing local trip id:', e);
+        console.warn('[GolfTripPlanner] Error clearing local trip id:', e);
       }
       currentTripPublicId = null;
       setStatus('Local trip ID cleared. Create or save a trip.', 'idle');
@@ -340,38 +328,38 @@ function setupButtons() {
 
   if (debugBtn) {
     debugBtn.addEventListener('click', () => {
-      console.log('CurrentTripPublicId:', currentTripPublicId);
-      console.log('Current UI data:', collectTripDataFromUI());
+      console.log('[GolfTripPlanner] currentTripPublicId:', currentTripPublicId);
+      console.log('[GolfTripPlanner] current UI data:', collectTripDataFromUI());
       alert('Debug info logged to console.');
     });
   }
 }
 
 // ===============================
-// 9. App Init
+// 9. Init
 // ===============================
 
 async function initGolfTripPlanner() {
+  console.log('[GolfTripPlanner] initGolfTripPlanner starting');
   setStatus('Initializing Golf Trip Planner…', 'loading');
 
   setupTabs();
   setupButtons();
 
-  // 1) Ensure we have an anonymous auth session
   await ensureAnonymousSession();
 
-  // 2) Load the last-used trip if we have one
   loadStoredTripId();
   if (currentTripPublicId) {
     await loadTripFromSupabase(currentTripPublicId);
   } else {
-    setStatus('Ready. Create a new trip or enter details and hit Save.', 'ok');
+    setStatus('Ready. Create a new trip or fill fields and Save.', 'ok');
   }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('[GolfTripPlanner] DOMContentLoaded fired');
   initGolfTripPlanner().catch((err) => {
-    console.error('Error during app init:', err);
+    console.error('[GolfTripPlanner] Error during init:', err);
     setStatus('Init error – see console.', 'error');
   });
 });
