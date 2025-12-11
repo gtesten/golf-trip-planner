@@ -43,31 +43,7 @@ function createEmptyTrip(initial = {}) {
 
 // ---------- Components ----------
 
-function AuthBar({ user, onSignIn, onSignOut }) {
-  const [email, setEmail] = useState("");
-
-  async function handleSignIn(email) {
-  setStatus("Sending magic link...");
-
-  const redirectUrl = window.location.origin + window.location.pathname;
-  // e.g. https://gtesten.github.io/golf-trip-planner/
-
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: redirectUrl
-    }
-  });
-
-  if (error) {
-    console.error(error);
-    setStatus("Error sending magic link.");
-  } else {
-    setStatus("Magic link sent! Check your email.");
-  }
-}
-
-
+function AuthBar({ user }) {
   return (
     <div
       style={{
@@ -81,37 +57,14 @@ function AuthBar({ user, onSignIn, onSignOut }) {
         background: "rgba(15,23,42,0.92)"
       }}
     >
-      {user ? (
-        <>
-          <span style={{ color: "#9ca3af" }}>
-            Signed in as <strong>{user.email}</strong>
-          </span>
-          <button className="btn-secondary" onClick={onSignOut}>
-            Sign out
-          </button>
-        </>
-      ) : (
-        <>
-          <span style={{ color: "#9ca3af" }}>
-            Sign in to sync trips across devices and browsers.
-          </span>
-          <form
-            onSubmit={handleSignIn}
-            style={{ display: "flex", gap: "0.4rem" }}
-          >
-            <input
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{ minWidth: "200px" }}
-            />
-            <button className="btn-secondary" type="submit">
-              Send magic link
-            </button>
-          </form>
-        </>
-      )}
+      <span style={{ color: "#9ca3af" }}>
+        {user
+          ? "Anonymous session active · Trips are tied to this browser."
+          : "Initializing session..."}
+      </span>
+      <span style={{ color: "#6b7280" }}>
+        No login needed · Just start planning.
+      </span>
     </div>
   );
 }
@@ -758,17 +711,37 @@ function App() {
     };
   }, []);
 
-  // Initial auth check + listener
+  // Anonymous auth init
   useEffect(() => {
     async function initAuth() {
-      const { data } = await supabase.auth.getSession();
+      setStatus("Checking session...");
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error(error);
+        setStatus("Error getting session.");
+        return;
+      }
       if (data.session) {
         setUser(data.session.user);
+        setStatus("Session restored.");
+        return;
       }
-      supabase.auth.onAuthStateChange((_event, session) => {
-        setUser(session?.user ?? null);
-      });
+
+      // No session → create anonymous user
+      setStatus("Starting anonymous session...");
+      const { data: anonData, error: anonError } =
+        await supabase.auth.signInAnonymously();
+
+      if (anonError) {
+        console.error(anonError);
+        setStatus("Error starting anonymous session.");
+        return;
+      }
+
+      setUser(anonData.user);
+      setStatus("Anonymous session ready.");
     }
+
     initAuth();
   }, []);
 
@@ -809,25 +782,9 @@ function App() {
   const selectedTrip =
     trips.find((t) => t.id === selectedTripId) || trips[0] || null;
 
-  async function handleSignIn(email) {
-    setStatus("Sending magic link...");
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    if (error) {
-      console.error(error);
-      setStatus("Error sending magic link.");
-    } else {
-      setStatus("Magic link sent! Check your email.");
-    }
-  }
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    setStatus("Signed out.");
-  }
-
   async function handleNewTrip() {
     if (!user) {
-      alert("Sign in first to save trips to your account.");
+      alert("Session not ready yet. Please wait a moment and try again.");
       return;
     }
 
@@ -889,7 +846,7 @@ function App() {
 
   async function saveTrip(updated) {
     if (!user) {
-      alert("Sign in first to save trips.");
+      alert("Session not ready yet. Please wait a moment and try again.");
       return;
     }
     setSaving(true);
@@ -919,7 +876,7 @@ function App() {
 
   function duplicateTrip() {
     if (!user || !selectedTrip) {
-      alert("Sign in and select a trip first.");
+      alert("Select a trip first.");
       return;
     }
     const base = selectedTrip;
@@ -965,11 +922,7 @@ function App() {
         flexDirection: "column"
       }}
     >
-      <AuthBar
-        user={user}
-        onSignIn={handleSignIn}
-        onSignOut={handleSignOut}
-      />
+      <AuthBar user={user} />
       <div className="app">
         <Sidebar
           trips={trips}
@@ -996,7 +949,7 @@ function App() {
               <p>
                 {user
                   ? "Create your first trip to start planning. You’ll be able to add players, rounds, lodging, teams, and more."
-                  : "Sign in and create a trip to start planning."}
+                  : "Initializing anonymous session..."}
               </p>
             </div>
           ) : (
@@ -1012,7 +965,7 @@ function App() {
                 </div>
                 <div className="main-header-right">
                   <span className="pill">
-                    <span className="dot" /> Synced to Supabase
+                    <span className="dot" /> Anonymous session
                   </span>
                   <button className="btn-secondary" onClick={duplicateTrip}>
                     ⧉ Duplicate Trip
@@ -1106,9 +1059,9 @@ function App() {
                   <div className="section-title">Invite & Sharing</div>
                   <div className="grid">
                     <PlaceholderCard title="Invite Your Group">
-                      We can add an email invite template and a "copy trip
-                      summary" block here. For now, just share this page and
-                      have everyone log in with their own account.
+                      Later we can add invite codes or shareable read-only
+                      views. For now, just pull this up on your laptop or share
+                      screenshots.
                     </PlaceholderCard>
                   </div>
                 </>
