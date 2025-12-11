@@ -46,12 +46,27 @@ function createEmptyTrip(initial = {}) {
 function AuthBar({ user, onSignIn, onSignOut }) {
   const [email, setEmail] = useState("");
 
-  async function handleSignIn(e) {
-    e.preventDefault();
-    if (!email) return;
-    await onSignIn(email);
-    setEmail("");
+  async function handleSignIn(email) {
+  setStatus("Sending magic link...");
+
+  const redirectUrl = window.location.origin + window.location.pathname;
+  // e.g. https://gtesten.github.io/golf-trip-planner/
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: redirectUrl
+    }
+  });
+
+  if (error) {
+    console.error(error);
+    setStatus("Error sending magic link.");
+  } else {
+    setStatus("Magic link sent! Check your email.");
   }
+}
+
 
   return (
     <div
