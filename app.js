@@ -1,30 +1,27 @@
 const { useState, useEffect, useMemo } = React;
 
-// ✅ Put your Supabase URL + anon key here
-const { createClient } = window.supabase;
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+// 🔐 Replace with your actual Supabase values
 const SUPABASE_URL = "https://qnfwckmwbudvuijqlkns.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_y5qYE-uYPTtNrdM0vI5tJA_V8IA29U1";
 
-// Grab the global injected by the CDN
+// Grab the Supabase global from the UMD script
 const supaGlobal = window.supabase;
 
-// Optional: helpful log
-console.log("Supabase global:", supaGlobal);
-
 if (!supaGlobal) {
-  throw new Error("Supabase global is missing. Check the <script src=\"https://unpkg.com/@supabase/supabase-js@2\"></script> tag and its order.");
+  throw new Error(
+    'Supabase global is missing. Check the <script src="https://unpkg.com/@supabase/supabase-js@2"></script> tag and its order.'
+  );
 }
 
-const { createClient } = supaGlobal;
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = supaGlobal.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-
-// ----------------- Helpers -----------------
+// ---------- Helpers ----------
 
 function createEmptyTrip(initial = {}) {
-  const id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
+  const id =
+    (window.crypto && crypto.randomUUID && crypto.randomUUID()) ||
+    Date.now().toString();
+
   return {
     id,
     name: initial.name || "New Golf Trip",
@@ -44,7 +41,7 @@ function createEmptyTrip(initial = {}) {
   };
 }
 
-// ----------------- Components -----------------
+// ---------- Components ----------
 
 function AuthBar({ user, onSignIn, onSignOut }) {
   const [email, setEmail] = useState("");
@@ -57,16 +54,18 @@ function AuthBar({ user, onSignIn, onSignOut }) {
   }
 
   return (
-    <div style={{
-      width: "100%",
-      padding: "0.45rem 1.5rem",
-      borderBottom: "1px solid rgba(148,163,184,0.25)",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      fontSize: "0.8rem",
-      background: "rgba(15,23,42,0.92)"
-    }}>
+    <div
+      style={{
+        width: "100%",
+        padding: "0.45rem 1.5rem",
+        borderBottom: "1px solid rgba(148,163,184,0.25)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        fontSize: "0.8rem",
+        background: "rgba(15,23,42,0.92)"
+      }}
+    >
       {user ? (
         <>
           <span style={{ color: "#9ca3af" }}>
@@ -81,7 +80,10 @@ function AuthBar({ user, onSignIn, onSignOut }) {
           <span style={{ color: "#9ca3af" }}>
             Sign in to sync trips across devices and browsers.
           </span>
-          <form onSubmit={handleSignIn} style={{ display: "flex", gap: "0.4rem" }}>
+          <form
+            onSubmit={handleSignIn}
+            style={{ display: "flex", gap: "0.4rem" }}
+          >
             <input
               type="email"
               placeholder="you@example.com"
@@ -99,11 +101,19 @@ function AuthBar({ user, onSignIn, onSignOut }) {
   );
 }
 
-function Sidebar({ trips, selectedTripId, onSelectTrip, onNewTrip, onDeleteTrip }) {
+function Sidebar({
+  trips,
+  selectedTripId,
+  onSelectTrip,
+  onNewTrip,
+  onDeleteTrip
+}) {
   return (
     <aside className="sidebar">
       <h1>Your Trips</h1>
-      <small>Create a trip for each buddies weekend, annual run, or golf getaway.</small>
+      <small>
+        Create a trip for each buddies weekend, annual run, or golf getaway.
+      </small>
 
       <button className="btn" onClick={onNewTrip}>
         <span className="icon">＋</span> New Trip
@@ -151,14 +161,22 @@ function Sidebar({ trips, selectedTripId, onSelectTrip, onNewTrip, onDeleteTrip 
         })}
 
         {trips.length === 0 && (
-          <p style={{ marginTop: "1.1rem", fontSize: "0.82rem", color: "#9ca3af" }}>
-            No trips yet. Click <strong>New Trip</strong> to set up your first one.
+          <p
+            style={{
+              marginTop: "1.1rem",
+              fontSize: "0.82rem",
+              color: "#9ca3af"
+            }}
+          >
+            No trips yet. Click <strong>New Trip</strong> to set up your first
+            one.
           </p>
         )}
       </div>
 
       <div className="sidebar-footer">
-        Pro tip: build a “Forest Dunes Template” trip once, then use <strong>Duplicate Trip</strong> each year.
+        Pro tip: build a “Forest Dunes Template” trip once, then duplicate it
+        each year.
       </div>
     </aside>
   );
@@ -190,22 +208,514 @@ function NavTabs({ activeTab, setActiveTab }) {
   );
 }
 
-// NOTE: For brevity, I'll stub the detailed cards here.
-// You can paste our existing BasicInfo / Players / Rounds / Lodging / Budget / Teams cards in,
-// then we’ll extend them with itinerary/expenses/sharing.
+// ----- Cards for Overview tab -----
+
+function BasicInfoCard({ trip, onChange }) {
+  function update(field, value) {
+    onChange({ ...trip, [field]: value });
+  }
+
+  return (
+    <div className="card">
+      <div className="card-inner">
+        <h3>
+          <span className="label">Trip Overview</span>
+          <span className="sub">High-level details</span>
+        </h3>
+
+        <div className="field-row">
+          <div className="field">
+            <label>Trip Name</label>
+            <input
+              value={trip.name}
+              onChange={(e) => update("name", e.target.value)}
+              placeholder="Forest Dunes 2026"
+            />
+          </div>
+          <div className="field">
+            <label>Destination / Region</label>
+            <input
+              value={trip.destination}
+              onChange={(e) => update("destination", e.target.value)}
+              placeholder="Roscommon, MI"
+            />
+          </div>
+        </div>
+
+        <div className="field-row">
+          <div className="field">
+            <label>Start Date</label>
+            <input
+              type="date"
+              value={trip.startDate}
+              onChange={(e) => update("startDate", e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label>End Date</label>
+            <input
+              type="date"
+              value={trip.endDate}
+              onChange={(e) => update("endDate", e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="field-row">
+          <div className="field">
+            <label>Trip Notes</label>
+            <textarea
+              value={trip.notes}
+              onChange={(e) => update("notes", e.target.value)}
+              placeholder="7 guys, 4 rounds, shared cabin, rain backup plans, side games, etc."
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlayersCard({ trip, onChange }) {
+  const players = trip.players || [];
+
+  function addPlayer() {
+    const id =
+      (window.crypto && crypto.randomUUID && crypto.randomUUID()) ||
+      Date.now().toString() + Math.random().toString(16).slice(2);
+    const updated = {
+      ...trip,
+      players: [
+        ...players,
+        { id, name: "", handicap: "", email: "", notes: "" }
+      ]
+    };
+    onChange(updated);
+  }
+
+  function updatePlayer(id, field, value) {
+    const updatedPlayers = players.map((p) =>
+      p.id === id ? { ...p, [field]: value } : p
+    );
+    onChange({ ...trip, players: updatedPlayers });
+  }
+
+  function removePlayer(id) {
+    const updatedPlayers = players.filter((p) => p.id !== id);
+    onChange({ ...trip, players: updatedPlayers });
+  }
+
+  return (
+    <div className="card">
+      <div className="card-inner">
+        <h3>
+          <span className="label">Players</span>
+          <span className="sub">{players.length} in this trip</span>
+        </h3>
+
+        <button className="btn-secondary" onClick={addPlayer}>
+          ＋ Add Player
+        </button>
+
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Index / HC</th>
+                <th>Email</th>
+                <th>Notes</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {players.map((p) => (
+                <tr key={p.id}>
+                  <td>
+                    <input
+                      value={p.name}
+                      onChange={(e) =>
+                        updatePlayer(p.id, "name", e.target.value)
+                      }
+                      placeholder="Player name"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      value={p.handicap}
+                      onChange={(e) =>
+                        updatePlayer(p.id, "handicap", e.target.value)
+                      }
+                      placeholder="e.g. 8.2"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      value={p.email}
+                      onChange={(e) =>
+                        updatePlayer(p.id, "email", e.target.value)
+                      }
+                      placeholder="optional"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      value={p.notes}
+                      onChange={(e) =>
+                        updatePlayer(p.id, "notes", e.target.value)
+                      }
+                      placeholder="preferences, room pairings..."
+                    />
+                  </td>
+                  <td>
+                    <button
+                      className="btn-danger"
+                      onClick={() => removePlayer(p.id)}
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {players.length === 0 && (
+                <tr>
+                  <td
+                    colSpan="5"
+                    style={{ textAlign: "center", color: "#9ca3af" }}
+                  >
+                    Add your first player to start building your group.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <small className="help">
+          Use this list for pairings, room assignments, and per-player budgeting.
+        </small>
+      </div>
+    </div>
+  );
+}
+
+function RoundsCard({ trip, onChange }) {
+  const rounds = trip.rounds || [];
+
+  function addRound() {
+    const id =
+      (window.crypto && crypto.randomUUID && crypto.randomUUID()) ||
+      Date.now().toString() + Math.random().toString(16).slice(2);
+    const updated = {
+      ...trip,
+      rounds: [...rounds, { id, date: "", course: "", teeTime: "", greenFee: "" }]
+    };
+    onChange(updated);
+  }
+
+  function updateRound(id, field, value) {
+    const updatedRounds = rounds.map((r) =>
+      r.id === id ? { ...r, [field]: value } : r
+    );
+    onChange({ ...trip, rounds: updatedRounds });
+  }
+
+  function removeRound(id) {
+    const updatedRounds = rounds.filter((r) => r.id !== id);
+    onChange({ ...trip, rounds: updatedRounds });
+  }
+
+  return (
+    <div className="card">
+      <div className="card-inner">
+        <h3>
+          <span className="label">Rounds & Tee Times</span>
+          <span className="sub">Courses and green fees</span>
+        </h3>
+
+        <button className="btn-secondary" onClick={addRound}>
+          ＋ Add Round
+        </button>
+
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Course</th>
+                <th>Tee Time</th>
+                <th>Green Fee ($)</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {rounds.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <input
+                      type="date"
+                      value={r.date}
+                      onChange={(e) => updateRound(r.id, "date", e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      value={r.course}
+                      onChange={(e) =>
+                        updateRound(r.id, "course", e.target.value)
+                      }
+                      placeholder="Course name"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      value={r.teeTime}
+                      onChange={(e) =>
+                        updateRound(r.id, "teeTime", e.target.value)
+                      }
+                      placeholder="e.g. 8:12 AM"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={r.greenFee}
+                      onChange={(e) =>
+                        updateRound(r.id, "greenFee", e.target.value)
+                      }
+                      placeholder="0"
+                    />
+                  </td>
+                  <td>
+                    <button
+                      className="btn-danger"
+                      onClick={() => removeRound(r.id)}
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {rounds.length === 0 && (
+                <tr>
+                  <td
+                    colSpan="5"
+                    style={{ textAlign: "center", color: "#9ca3af" }}
+                  >
+                    Add each planned round with an estimated green fee.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <small className="help">
+          Include replay / twilight rounds and use 0 for comped rounds if needed.
+        </small>
+      </div>
+    </div>
+  );
+}
+
+function LodgingCard({ trip, onChange }) {
+  const lodging = trip.lodging || [];
+
+  function addNight() {
+    const id =
+      (window.crypto && crypto.randomUUID && crypto.randomUUID()) ||
+      Date.now().toString() + Math.random().toString(16).slice(2);
+    const updated = {
+      ...trip,
+      lodging: [...lodging, { id, date: "", place: "", cost: "" }]
+    };
+    onChange(updated);
+  }
+
+  function updateNight(id, field, value) {
+    const updatedLodging = lodging.map((n) =>
+      n.id === id ? { ...n, [field]: value } : n
+    );
+    onChange({ ...trip, lodging: updatedLodging });
+  }
+
+  function removeNight(id) {
+    const updatedLodging = lodging.filter((n) => n.id !== id);
+    onChange({ ...trip, lodging: updatedLodging });
+  }
+
+  return (
+    <div className="card">
+      <div className="card-inner">
+        <h3>
+          <span className="label">Lodging</span>
+          <span className="sub">Cabins, hotels, and rentals</span>
+        </h3>
+
+        <button className="btn-secondary" onClick={addNight}>
+          ＋ Add Night
+        </button>
+
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Date / Night</th>
+                <th>Place</th>
+                <th>Cost / Night ($)</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {lodging.map((n) => (
+                <tr key={n.id}>
+                  <td>
+                    <input
+                      type="date"
+                      value={n.date}
+                      onChange={(e) => updateNight(n.id, "date", e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      value={n.place}
+                      onChange={(e) =>
+                        updateNight(n.id, "place", e.target.value)
+                      }
+                      placeholder="Cabin / resort name"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={n.cost}
+                      onChange={(e) => updateNight(n.id, "cost", e.target.value)}
+                      placeholder="0"
+                    />
+                  </td>
+                  <td>
+                    <button
+                      className="btn-danger"
+                      onClick={() => removeNight(n.id)}
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {lodging.length === 0 && (
+                <tr>
+                  <td
+                    colSpan="4"
+                    style={{ textAlign: "center", color: "#9ca3af" }}
+                  >
+                    Track each night and its cost, even if part of a package.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <small className="help">
+          For packages, either enter nightly equivalents or one line with full
+          cost.
+        </small>
+      </div>
+    </div>
+  );
+}
+
+function BudgetCard({ trip }) {
+  const players = trip.players || [];
+  const rounds = trip.rounds || [];
+  const lodging = trip.lodging || [];
+
+  const { totalGreen, totalLodging, total, perPlayer } = useMemo(() => {
+    const totalGreen = rounds.reduce((sum, r) => {
+      const v = parseFloat(r.greenFee);
+      return sum + (isNaN(v) ? 0 : v);
+    }, 0);
+
+    const totalLodging = lodging.reduce((sum, n) => {
+      const v = parseFloat(n.cost);
+      return sum + (isNaN(v) ? 0 : v);
+    }, 0);
+
+    const total = totalGreen + totalLodging;
+    const headcount = players.length || 1;
+    const perPlayer = total / headcount;
+
+    return { totalGreen, totalLodging, total, perPlayer };
+  }, [players, rounds, lodging]);
+
+  return (
+    <div className="card">
+      <div className="card-inner">
+        <h3>
+          <span className="label">Budget Summary</span>
+          <span className="badge">
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 999,
+                background: "#22c55e",
+                boxShadow: "0 0 6px rgba(34,197,94,0.9)"
+              }}
+            />
+            Live estimate
+          </span>
+        </h3>
+
+        <div className="summary-line">
+          <span className="label">Players</span>
+          <span className="value">{players.length || 0}</span>
+        </div>
+        <div className="summary-line">
+          <span className="label">Total Green Fees</span>
+          <span className="value">${totalGreen.toFixed(0)}</span>
+        </div>
+        <div className="summary-line">
+          <span className="label">Total Lodging</span>
+          <span className="value">${totalLodging.toFixed(0)}</span>
+        </div>
+        <div className="summary-total summary-line">
+          <span className="label">Trip Total</span>
+          <span className="value">${total.toFixed(0)}</span>
+        </div>
+        <div className="summary-line">
+          <span className="label">Estimated Per Player</span>
+          <span className="value">
+            {players.length > 0
+              ? `$${perPlayer.toFixed(0)}`
+              : "Add players to see per-person"}
+          </span>
+        </div>
+        <small className="help">
+          Currently includes golf + lodging. You can add more categories later
+          in an Expenses tab.
+        </small>
+      </div>
+    </div>
+  );
+}
 
 function PlaceholderCard({ title, children }) {
   return (
     <div className="card">
       <div className="card-inner">
-        <h3><span className="label">{title}</span></h3>
+        <h3>
+          <span className="label">{title}</span>
+        </h3>
         <div style={{ fontSize: "0.85rem", color: "#9ca3af" }}>{children}</div>
       </div>
     </div>
   );
 }
 
-// ----------------- Main App -----------------
+// ---------- Main App ----------
 
 function App() {
   const [user, setUser] = useState(null);
@@ -233,7 +743,7 @@ function App() {
     };
   }, []);
 
-  // Initial auth check
+  // Initial auth check + listener
   useEffect(() => {
     async function initAuth() {
       const { data } = await supabase.auth.getSession();
@@ -257,7 +767,7 @@ function App() {
       }
       const { data, error } = await supabase
         .from("trips")
-        .select("id, name, data")
+        .select("id, name, data, created_at")
         .order("created_at", { ascending: true });
 
       if (error) {
@@ -274,14 +784,15 @@ function App() {
 
       setTrips(mapped);
       if (mapped.length > 0) {
-        setSelectedTripId(mapped[0].id);
+        setSelectedTripId((prev) => prev || mapped[0].id);
       }
     }
 
     loadTrips();
   }, [user]);
 
-  const selectedTrip = trips.find((t) => t.id === selectedTripId) || null;
+  const selectedTrip =
+    trips.find((t) => t.id === selectedTripId) || trips[0] || null;
 
   async function handleSignIn(email) {
     setStatus("Sending magic link...");
@@ -340,10 +851,7 @@ function App() {
     if (!user) return;
     setSaving(true);
     setStatus("Deleting trip...");
-    const { error } = await supabase
-      .from("trips")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("trips").delete().eq("id", id);
 
     setSaving(false);
     if (error) {
@@ -399,14 +907,13 @@ function App() {
       alert("Sign in and select a trip first.");
       return;
     }
+    const base = selectedTrip;
     const clone = createEmptyTrip();
-    // Copy most data
     const copy = {
-      ...selectedTrip,
+      ...base,
       id: clone.id,
-      name: (selectedTrip.name || "Trip") + " (Copy)"
+      name: (base.name || "Trip") + " (Copy)"
     };
-    // Save to backend
     (async () => {
       setSaving(true);
       setStatus("Duplicating trip...");
@@ -436,8 +943,18 @@ function App() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <AuthBar user={user} onSignIn={handleSignIn} onSignOut={handleSignOut} />
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column"
+      }}
+    >
+      <AuthBar
+        user={user}
+        onSignIn={handleSignIn}
+        onSignOut={handleSignOut}
+      />
       <div className="app">
         <Sidebar
           trips={trips}
@@ -448,7 +965,13 @@ function App() {
         />
         <main className="main">
           {status && (
-            <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginBottom: "0.4rem" }}>
+            <div
+              style={{
+                fontSize: "0.75rem",
+                color: "#9ca3af",
+                marginBottom: "0.4rem"
+              }}
+            >
               {saving ? "⏳ " : "✅ "} {status}
             </div>
           )}
@@ -468,17 +991,21 @@ function App() {
                   <h2>{selectedTrip.name || "Untitled Trip"}</h2>
                   <p>
                     {selectedTrip.destination || "Destination TBA"} ·{" "}
-                    {selectedTrip.startDate || "?"} → {selectedTrip.endDate || "?"}
+                    {selectedTrip.startDate || "?"} →{" "}
+                    {selectedTrip.endDate || "?"}
                   </p>
                 </div>
                 <div className="main-header-right">
                   <span className="pill">
-                    <span className="dot" /> Auto-saved to Supabase
+                    <span className="dot" /> Synced to Supabase
                   </span>
                   <button className="btn-secondary" onClick={duplicateTrip}>
                     ⧉ Duplicate Trip
                   </button>
-                  <button className="btn" onClick={() => saveTrip(selectedTrip)}>
+                  <button
+                    className="btn"
+                    onClick={() => saveTrip(selectedTrip)}
+                  >
                     💾 Save Trip
                   </button>
                 </div>
@@ -490,18 +1017,31 @@ function App() {
                 <>
                   <div className="section-title">Trip setup</div>
                   <div className="grid">
-                    <PlaceholderCard title="Trip Overview">
-                      {/* Replace with your BasicInfo + Budget cards */}
-                      Overview card goes here (we’ll wire your real fields next).
-                    </PlaceholderCard>
-                    <PlaceholderCard title="Budget Summary">
-                      Budget summary card goes here.
-                    </PlaceholderCard>
+                    <BasicInfoCard
+                      trip={selectedTrip}
+                      onChange={handleTripChange}
+                    />
+                    <BudgetCard trip={selectedTrip} />
                   </div>
+
                   <div className="section-title">Golf & group</div>
                   <div className="grid">
-                    <PlaceholderCard title="Players">Players card goes here.</PlaceholderCard>
-                    <PlaceholderCard title="Rounds & Tee Times">Rounds card goes here.</PlaceholderCard>
+                    <PlayersCard
+                      trip={selectedTrip}
+                      onChange={handleTripChange}
+                    />
+                    <RoundsCard
+                      trip={selectedTrip}
+                      onChange={handleTripChange}
+                    />
+                  </div>
+
+                  <div className="section-title">Stay</div>
+                  <div className="grid">
+                    <LodgingCard
+                      trip={selectedTrip}
+                      onChange={handleTripChange}
+                    />
                   </div>
                 </>
               )}
@@ -511,7 +1051,8 @@ function App() {
                   <div className="section-title">Itinerary</div>
                   <div className="grid">
                     <PlaceholderCard title="Daily Plan">
-                      Itinerary editor goes here (Day 1, Day 2, etc).
+                      Itinerary editor (Day 1, Day 2, etc.) will go here. We’ll
+                      hook this into your rounds + lodging next.
                     </PlaceholderCard>
                   </div>
                 </>
@@ -522,7 +1063,8 @@ function App() {
                   <div className="section-title">Pairings & Scores</div>
                   <div className="grid">
                     <PlaceholderCard title="Teams & Scoreboard">
-                      Teams & scoring UI goes here.
+                      Team setups and scoring table will go here (per-round
+                      scores, team totals, leaderboard).
                     </PlaceholderCard>
                   </div>
                 </>
@@ -533,10 +1075,12 @@ function App() {
                   <div className="section-title">Expenses & Documents</div>
                   <div className="grid">
                     <PlaceholderCard title="Trip Expenses">
-                      Expense table goes here.
+                      We'll add an expense table here for food, travel, side
+                      games, etc. You can also track who paid what.
                     </PlaceholderCard>
                     <PlaceholderCard title="Documents & Links">
-                      Store Google Drive / Dropbox / PDF links here.
+                      Store Google Drive / Dropbox / PDF links here (itinerary
+                      PDF, confirmations, etc.).
                     </PlaceholderCard>
                   </div>
                 </>
@@ -547,7 +1091,9 @@ function App() {
                   <div className="section-title">Invite & Sharing</div>
                   <div className="grid">
                     <PlaceholderCard title="Invite Your Group">
-                      Email invite template + copy link UI goes here.
+                      We can add an email invite template and a "copy trip
+                      summary" block here. For now, just share this page and
+                      have everyone log in with their own account.
                     </PlaceholderCard>
                   </div>
                 </>
