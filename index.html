@@ -1,55 +1,352 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Golf Trip Planner</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+<head>
+  <meta charset="UTF-8" />
+  <title>Golf Trip Planner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <!-- Styles -->
-    <link rel="stylesheet" href="styles.css" />
+  <!-- Simple baseline styling -->
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f3f4f6;
+      color: #111827;
+    }
 
-    <!-- React / ReactDOM / Babel -->
-    <script
-      src="https://unpkg.com/react@18/umd/react.development.js"
-      crossorigin
-    ></script>
-    <script
-      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
-      crossorigin
-    ></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    header {
+      background: #065f46;
+      color: white;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
 
-    <!-- Supabase JS client (v2 UMD) -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  </head>
-  <body>
-    <!-- Top brand bar -->
-    <div class="topbar">
-      <div class="topbar-left">
-        <div class="topbar-logo" aria-hidden="true"></div>
-        <div>
-          <div class="topbar-title">Golf Trip Planner</div>
-          <div class="topbar-subtitle">
-            Plan buddies trips, budgets, pairings and scoreboards in one place.
+    header h1 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+
+    .header-sub {
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 1.5rem auto;
+      padding: 1.5rem;
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      align-items: center;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 0.45rem 0.9rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: #059669;
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    button.danger {
+      background: #dc2626;
+      color: white;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status {
+      font-size: 0.85rem;
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #9ca3af;
+    }
+
+    .status-dot.ok {
+      background: #10b981;
+    }
+
+    .status-dot.error {
+      background: #ef4444;
+    }
+
+    .status-dot.loading {
+      background: #f97316;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 0.25rem;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      border: none;
+      background: transparent;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+
+    .tab-btn.active {
+      background: #ecfdf5;
+      color: #047857;
+      font-weight: 600;
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #374151;
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+
+    input[type="text"],
+    input[type="date"],
+    textarea {
+      width: 100%;
+      border-radius: 0.5rem;
+      border: 1px solid #d1d5db;
+      padding: 0.45rem 0.6rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+
+    textarea {
+      min-height: 160px;
+      resize: vertical;
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 0.15rem;
+    }
+
+    footer {
+      margin-top: 1rem;
+      font-size: 0.75rem;
+      color: #9ca3af;
+      text-align: right;
+    }
+
+    @media (max-width: 640px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+      }
+
+      .controls {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .status {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Golf Trip Planner</h1>
+      <div class="header-sub">Plan trips, pairings, scores, and expenses in one place.</div>
+    </div>
+    <div class="status" id="statusBar">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Initializing…</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="controls">
+      <button id="newTripBtn">➕ New Trip</button>
+      <button id="saveTripBtn">💾 Save Trip</button>
+      <button id="reloadTripBtn" class="secondary">🔄 Reload from Supabase</button>
+      <button id="clearLocalBtn" class="secondary">🧹 Clear Local Trip ID</button>
+      <button id="debugBtn" class="secondary">🐛 Log Current Trip</button>
+    </section>
+
+    <section>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="detailsTab">Trip Details</button>
+        <button class="tab-btn" data-tab="itineraryTab">Itinerary</button>
+        <button class="tab-btn" data-tab="pairingsTab">Pairings &amp; Scores</button>
+        <button class="tab-btn" data-tab="expensesTab">Expenses &amp; Docs</button>
+        <button class="tab-btn" data-tab="sharingTab">Sharing</button>
+      </div>
+
+      <!-- Trip Details -->
+      <div class="tab-panel active" id="detailsTab">
+        <div class="grid">
+          <div>
+            <label for="tripName">Trip Name</label>
+            <input type="text" id="tripName" placeholder="Forest Dunes 2026" />
+            <div class="hint">e.g., “Boyne 2026 – Guys Trip”</div>
+          </div>
+          <div>
+            <label for="tripLocation">Location</label>
+            <input type="text" id="tripLocation" placeholder="Forest Dunes, Roscommon, MI" />
+          </div>
+          <div>
+            <label for="tripStartDate">Start Date</label>
+            <input type="date" id="tripStartDate" />
+          </div>
+          <div>
+            <label for="tripEndDate">End Date</label>
+            <input type="date" id="tripEndDate" />
           </div>
         </div>
+        <p class="hint">
+          When you hit <strong>Save Trip</strong>, these details and all tab data will be saved to the <code>trips</code> table
+          in Supabase using a UUID <code>public_id</code> (no more bigint errors).
+        </p>
       </div>
-      <div class="topbar-right">
-        <div class="topbar-pill">
-          <span class="topbar-pill-dot"></span>
-          <span>Supabase-backed · multi-device</span>
+
+      <!-- Itinerary -->
+      <div class="tab-panel" id="itineraryTab">
+        <label for="itineraryData">Itinerary Data (JSON or free text)</label>
+        <textarea id="itineraryData" placeholder='Example:
+[
+  {"day": 1, "course": "Forest Dunes", "tee_time": "09:00", "format": "Best Ball"},
+  {"day": 1, "course": "The Loop", "tee_time": "14:30", "format": "Alt Shot"}
+]'></textarea>
+        <div class="hint">
+          You can paste structured JSON from your sheets, or just keep this as annotated notes.
+          Stored in <code>trips.itinerary_data</code>.
         </div>
-        <button id="theme-toggle" class="theme-toggle-btn" type="button">
-          🌙 Dark
-        </button>
-        <span>v2.0</span>
       </div>
-    </div>
 
-    <!-- React app root -->
-    <div id="root"></div>
+      <!-- Pairings & Scores -->
+      <div class="tab-panel" id="pairingsTab">
+        <label for="pairingsData">Pairings &amp; Scores Data</label>
+        <textarea id="pairingsData" placeholder='Example:
+{
+  "players": ["Glenn", "Mike", "Dave", "Chris"],
+  "rounds": [
+    {
+      "day": 1,
+      "course": "Forest Dunes",
+      "pairings": [
+        ["Glenn", "Mike"],
+        ["Dave", "Chris"]
+      ],
+      "scores": {
+        "Glenn": 78,
+        "Mike": 82,
+        "Dave": 80,
+        "Chris": 85
+      }
+    }
+  ]
+}'></textarea>
+        <div class="hint">
+          Paste JSON from a Google Sheet export, or just free-form notes.
+          Stored in <code>trips.pairings_data</code>.
+        </div>
+      </div>
 
-    <!-- App code (Babel will transpile JSX in app.js) -->
-    <script type="text/babel" src="app.js"></script>
-  </body>
+      <!-- Expenses & Docs -->
+      <div class="tab-panel" id="expensesTab">
+        <label for="expensesData">Expenses &amp; Docs</label>
+        <textarea id="expensesData" placeholder='Example:
+{
+  "budget": {
+    "lodging": 2600,
+    "golf": 1400,
+    "meals": 800,
+    "travel": 1200
+  },
+  "docs": [
+    {"label": "Res #12345 – Forest Dunes", "url": "https://..."},
+    {"label": "Res #67890 – The Loop", "url": "https://..."}
+  ]
+}'></textarea>
+        <div class="hint">
+          Store budget numbers, receipts, and doc links here. Stored in <code>trips.expenses_data</code>.
+        </div>
+      </div>
+
+      <!-- Sharing -->
+      <div class="tab-panel" id="sharingTab">
+        <label for="sharingData">Sharing Settings / Notes</label>
+        <textarea id="sharingData" placeholder='Example:
+{
+  "organizer_email": "you@example.com",
+  "share_link": "https://gtesten.github.io/golf-trip-planner/?trip=...",
+  "notes": "Venmo @GlennTesten for lodging by 7/15. Final pairings will be posted the week before."
+}'></textarea>
+        <div class="hint">
+          Any info you use when sending this trip to the group goes here. Stored in <code>trips.sharing_data</code>.
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Trip ID in this browser is stored as a UUID <code>public_id</code> in
+      <code>localStorage["currentTripPublicId"]</code>.
+    </footer>
+  </main>
+
+  <!-- Supabase JS v2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Your app code -->
+  <script src="app.js"></script>
+</body>
 </html>
