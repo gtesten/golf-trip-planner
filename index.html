@@ -1,53 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Golf Trip Planner</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <head>
+    <meta charset="UTF-8" />
+    <title>Golf Trip Planner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Styles -->
-  <link rel="stylesheet" href="styles.css" />
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css" />
 
-  <!-- React / ReactDOM / Babel -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- React / ReactDOM / Babel -->
+    <script
+      src="https://unpkg.com/react@18/umd/react.development.js"
+      crossorigin
+    ></script>
+    <script
+      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+      crossorigin
+    ></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-<!-- Put this BEFORE app.js -->
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
-  <!-- Then your React app -->
-<script type="text/babel" src="app.js"></script>
-  
-  <!-- Supabase JS client -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase-js.min.js"></script>
-</head>
-<body>
-  <!-- Top brand bar -->
-  <div class="topbar">
-    <div class="topbar-left">
-      <div class="topbar-logo" aria-hidden="true"></div>
-      <div>
-        <div class="topbar-title">Golf Trip Planner</div>
-        <div class="topbar-subtitle">Plan buddies trips, budgets, pairings and scoreboards in one place.</div>
+    <!-- Supabase JS client (v2 UMD) -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  </head>
+  <body>
+    <!-- Top brand bar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-logo" aria-hidden="true"></div>
+        <div>
+          <div class="topbar-title">Golf Trip Planner</div>
+          <div class="topbar-subtitle">
+            Plan buddies trips, budgets, pairings and scoreboards in one place.
+          </div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-pill">
+          <span class="topbar-pill-dot"></span>
+          <span>Supabase-backed · multi-device</span>
+        </div>
+        <button id="theme-toggle" class="theme-toggle-btn" type="button">
+          🌙 Dark
+        </button>
+        <span>v2.0</span>
       </div>
     </div>
-    <div class="topbar-right">
-      <div class="topbar-pill">
-        <span class="topbar-pill-dot"></span>
-        <span>Supabase-backed · multi-device</span>
-      </div>
-      <button id="theme-toggle" class="theme-toggle-btn" type="button">
-        🌙 Dark
-      </button>
-      <span>v2.0</span>
-    </div>
-  </div>
 
-  <!-- React app root -->
-  <div id="root"></div>
+    <!-- React app root -->
+    <div id="root"></div>
 
-  <!-- App code -->
-  <script type="text/babel" src="app.js"></script>
-</body>
+    <!-- App code (Babel will transpile JSX in app.js) -->
+    <script type="text/babel" src="app.js"></script>
+  </body>
 </html>
