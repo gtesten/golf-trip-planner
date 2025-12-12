@@ -21,6 +21,13 @@ console.log('[GolfTripPlanner] main.js loaded');
 window.GTP = window.GTP || {};
 window.GTP.__loadedAt = new Date().toISOString();
 console.log('[GolfTripPlanner] main.js loaded at', window.GTP.__loadedAt);
+window.addEventListener('error', (e) => {
+  console.error('[GolfTripPlanner] window.error:', e.message, e.filename, e.lineno, e.colno, e.error);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('[GolfTripPlanner] unhandledrejection:', e.reason);
+});
+
 
 
 let currentTripPublicId = null;
