@@ -47,6 +47,36 @@ function setStatus(text, mode = 'idle') {
   else if (mode === 'loading') statusDot.classList.add('loading');
 }
 
+function ensureToasts() {
+  if (document.getElementById('toastHost')) return;
+  const host = document.createElement('div');
+  host.id = 'toastHost';
+  host.style.position = 'fixed';
+  host.style.right = '14px';
+  host.style.bottom = '14px';
+  host.style.display = 'flex';
+  host.style.flexDirection = 'column';
+  host.style.gap = '10px';
+  host.style.zIndex = '9999';
+  document.body.appendChild(host);
+}
+
+function toast(message, kind = 'info', timeout = 2200) {
+  ensureToasts();
+  const host = document.getElementById('toastHost');
+  const el = document.createElement('div');
+  el.className = `toast toast-${kind}`;
+  el.textContent = message;
+  host.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');toast('Trip saved.', 'success');
+    toast('Error saving trip — see console.', 'error', 3500);
+
+    setTimeout(() => el.remove(), 200);
+  }, timeout);
+}
+
 // -----------------------------
 // Save badge + autosave
 // -----------------------------
@@ -378,11 +408,11 @@ async function saveCurrentTrip({ silent = false } = {}) {
   if (error) {
     console.error('[GolfTripPlanner] Error saving trip:', error);
     if (!silent) setStatus('Error saving trip – see console.', 'error');
-    if (!silent) alert('Error saving trip. Check console for details.');
+    if (!silent) toast('Error loading trip — see console.', 'error', 3500);
     throw error;
   }
 
-  if (!silent) setStatus('Trip saved successfully.', 'ok');
+  if (!silent) toast('Trip saved', 'success');
 }
 
 // -----------------------------
@@ -424,7 +454,7 @@ function setupButtons() {
   document.getElementById('reloadTripBtn')?.addEventListener('click', async () => {
     console.log('[GolfTripPlanner] reloadTripBtn clicked');
     if (!currentTripPublicId) {
-      alert('No current trip ID stored. Create or save a trip first.');
+      toast('No trip loaded yet. Save or create a trip first.', 'info');
       return;
     }
     await loadTripFromSupabase(currentTripPublicId);
@@ -520,6 +550,16 @@ async function initGolfTripPlanner() {
   setupButtons();
   setupDirtyTracking();
   console.log('[GolfTripPlanner] initGolfTripPlanner finished wiring UI');
+
+  document.addEventListener('keydown', (e) => {
+  const isSave = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's';
+  if (isSave) {
+    e.preventDefault();
+    saveCurrentTrip({ silent: false })
+      .then(() => toast('Saved', 'success'))
+      .catch(() => toast('Save failed — see console', 'error', 3500));
+  }
+});
 
   // Initial empty UI before Supabase
   renderItineraryFromModel({ days: [] }, { pairingsModel: { rounds: [] } });
