@@ -351,8 +351,6 @@ function setupButtons() {
   const addDayBtn = document.getElementById('addDayBtn');
   const addRoundBtn = document.getElementById('addRoundBtn');
 
-  console.log('[GolfTripPlanner] addDayBtn exists?', !!addDayBtn);
-  console.log('[GolfTripPlanner] addRoundBtn exists?', !!addRoundBtn);
 
   if (addDayBtn) {
     const r = addDayBtn.getBoundingClientRect();
@@ -362,8 +360,6 @@ function setupButtons() {
     const r = addRoundBtn.getBoundingClientRect();
     console.log('[GolfTripPlanner] addRoundBtn rect', r);
   }
-
-  console.log('[GolfTripPlanner] setupButtons complete');
 }
 
 
