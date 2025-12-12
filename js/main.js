@@ -18,6 +18,10 @@ import {
 } from './pairings.js';
 
 console.log('[GolfTripPlanner] main.js loaded');
+window.GTP = window.GTP || {};
+window.GTP.__loadedAt = new Date().toISOString();
+console.log('[GolfTripPlanner] main.js loaded at', window.GTP.__loadedAt);
+
 
 let currentTripPublicId = null;
 
@@ -280,10 +284,21 @@ function setupTabs() {
 }
 
 function setupButtons() {
-  document.getElementById('newTripBtn')?.addEventListener('click', createNewTripAndLoad);
-  document.getElementById('saveTripBtn')?.addEventListener('click', saveCurrentTrip);
+  console.log('[GolfTripPlanner] setupButtons starting…');
+
+  // Core buttons
+  document.getElementById('newTripBtn')?.addEventListener('click', () => {
+    console.log('[GolfTripPlanner] newTripBtn clicked');
+    createNewTripAndLoad();
+  });
+
+  document.getElementById('saveTripBtn')?.addEventListener('click', () => {
+    console.log('[GolfTripPlanner] saveTripBtn clicked');
+    saveCurrentTrip();
+  });
 
   document.getElementById('reloadTripBtn')?.addEventListener('click', async () => {
+    console.log('[GolfTripPlanner] reloadTripBtn clicked');
     if (!currentTripPublicId) {
       alert('No current trip ID stored. Create or save a trip first.');
       return;
@@ -292,33 +307,65 @@ function setupButtons() {
   });
 
   document.getElementById('clearLocalBtn')?.addEventListener('click', () => {
-    try {
-      localStorage.removeItem('currentTripPublicId');
-    } catch (e) {
-      console.warn('[GolfTripPlanner] Error clearing local trip id:', e);
-    }
+    console.log('[GolfTripPlanner] clearLocalBtn clicked');
+    try { localStorage.removeItem('currentTripPublicId'); } catch {}
     currentTripPublicId = null;
     setStatus('Local trip ID cleared. Create or save a trip.', 'idle');
   });
 
   document.getElementById('debugBtn')?.addEventListener('click', () => {
+    console.log('[GolfTripPlanner] debugBtn clicked');
     console.log('[GolfTripPlanner] currentTripPublicId:', currentTripPublicId);
     console.log('[GolfTripPlanner] UI trip data:', collectTripDataFromUI());
     alert('Debug info logged to console.');
   });
 
-  // Itinerary: Add Day
-  document.getElementById('addDayBtn')?.addEventListener('click', () => {
-    document.getElementById('itineraryDaysContainer')?.appendChild(createDayCard());
+  // ✅ Delegated clicks: Add Day / Add Round
+  document.addEventListener('click', (e) => {
+    const addDay = e.target.closest?.('#addDayBtn');
+    if (addDay) {
+      console.log('[GolfTripPlanner] Add Day clicked');
+      const container = document.getElementById('itineraryDaysContainer');
+      if (!container) {
+        console.warn('[GolfTripPlanner] itineraryDaysContainer missing');
+        return;
+      }
+      container.appendChild(createDayCard());
+      return;
+    }
+
+    const addRound = e.target.closest?.('#addRoundBtn');
+    if (addRound) {
+      console.log('[GolfTripPlanner] Add Round clicked');
+      const roundsContainer = document.getElementById('roundsContainer');
+      if (!roundsContainer) {
+        console.warn('[GolfTripPlanner] roundsContainer missing');
+        return;
+      }
+      roundsContainer.appendChild(createRoundCard({}, getPlayersFromTextarea()));
+      return;
+    }
   });
 
-  // Pairings: Add Round
-  document.getElementById('addRoundBtn')?.addEventListener('click', () => {
-    const roundsContainer = document.getElementById('roundsContainer');
-    if (!roundsContainer) return;
-    roundsContainer.appendChild(createRoundCard({}, getPlayersFromTextarea()));
-  });
+  // Diagnostics: ensure buttons exist and are clickable
+  const addDayBtn = document.getElementById('addDayBtn');
+  const addRoundBtn = document.getElementById('addRoundBtn');
+
+  console.log('[GolfTripPlanner] addDayBtn exists?', !!addDayBtn);
+  console.log('[GolfTripPlanner] addRoundBtn exists?', !!addRoundBtn);
+
+  if (addDayBtn) {
+    const r = addDayBtn.getBoundingClientRect();
+    console.log('[GolfTripPlanner] addDayBtn rect', r);
+  }
+  if (addRoundBtn) {
+    const r = addRoundBtn.getBoundingClientRect();
+    console.log('[GolfTripPlanner] addRoundBtn rect', r);
+  }
+
+  console.log('[GolfTripPlanner] setupButtons complete');
 }
+
 
 // -----------------------------
 // Init
@@ -328,6 +375,8 @@ async function initGolfTripPlanner() {
 
   setupTabs();
   setupButtons();
+  console.log('[GolfTripPlanner] initGolfTripPlanner finished wiring UI');
+
 
   // Initial empty UI before Supabase
   renderItineraryFromModel({ days: [] });
