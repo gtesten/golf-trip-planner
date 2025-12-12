@@ -2,6 +2,9 @@
 // App orchestrator: tabs, buttons, state, Supabase CRUD, UI <-> data
 
 'use strict';
+// ✅ Safety stub so the app never bricks if sticky bars code isn't present yet
+function setupStickyActionBars() {}
+
 
 import { supabaseClient, ensureAnonymousSession } from './supabaseClient.js';
 import {
