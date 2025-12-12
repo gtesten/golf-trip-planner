@@ -534,3 +534,36 @@ code{
 #playersInput{
   min-height: 220px;
 }
+/* --- Score tables: never overflow the page --- */
+.round-card{
+  overflow: hidden; /* contains any child overflow */
+}
+
+/* Wrap tables in a horizontal scroll container */
+.round-card .table-scroll{
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(148,163,184,.25);
+  background: rgba(255,255,255,.96);
+}
+
+/* Make the table behave nicely inside scroll */
+.round-card table{
+  width: max-content;     /* expands to fit columns */
+  min-width: 100%;        /* but never smaller than card */
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Slightly tighter cells so it fits better */
+.round-card th, .round-card td{
+  padding: .42rem .45rem;
+  white-space: nowrap;
+}
+.round-card td input{
+  width: 42px;
+  text-align: center;
+}

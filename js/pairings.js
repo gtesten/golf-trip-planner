@@ -201,7 +201,7 @@ export function createRoundCard(round = {}, defaultPlayers = [], options = {}) {
       Stableford will use Par/SI when enabled.
     </div>
 
-    <div style="overflow:auto; border-radius:14px;">
+    <div class="table-scroll">
       <table class="score-table">
         <thead>
           <tr>
