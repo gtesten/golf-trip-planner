@@ -203,6 +203,16 @@ export function createRoundCard(round = {}, defaultPlayers = [], options = {}) {
 
     <div class="table-scroll">
       <table class="score-table">
+      <colgroup>
+        <col class="col-player">
+        <col class="col-hdcp">
+        ${Array.from({ length: 9 }, () => `<col class="col-hole">`).join('')}
+        <col class="col-outin">
+        ${Array.from({ length: 9 }, () => `<col class="col-hole">`).join('')}
+        <col class="col-outin">
+        <col class="col-total">
+        <col class="col-total">
+        </colgroup>
         <thead>
           <tr>
             <th style="min-width:160px;">Player</th>

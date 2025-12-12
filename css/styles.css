@@ -567,44 +567,56 @@ code{
   width: 42px;
   text-align: center;
 }
-/* --- Sticky left columns (aligned) --- */
+/* Deterministic table sizing */
+.round-card .score-table{
+  table-layout: fixed;
+}
+
+/* Column widths via colgroup */
+:root{
+  --col-player: 170px;
+  --col-hdcp: 72px;
+  --col-hole: 44px;
+  --col-outin: 56px;
+  --col-total: 70px;
+}
+
+.round-card .score-table col.col-player{ width: var(--col-player); }
+.round-card .score-table col.col-hdcp{ width: var(--col-hdcp); }
+.round-card .score-table col.col-hole{ width: var(--col-hole); }
+.round-card .score-table col.col-outin{ width: var(--col-outin); }
+.round-card .score-table col.col-total{ width: var(--col-total); }
+
+/* Sticky header */
+.round-card .table-scroll thead th{
+  position: sticky;
+  top: 0;
+  z-index: 6;
+}
+
+/* Sticky left columns (now perfectly aligned because widths are fixed) */
 .round-card .table-scroll{
   position: relative;
 }
 
-.round-card .table-scroll thead th{
-  position: sticky;
-  top: 0;
-  z-index: 4;
-}
-
-:root{
-  --col-player: 170px;
-  --col-hdcp: 72px;
-}
-
 .round-card .table-scroll th:nth-child(1),
 .round-card .table-scroll td:nth-child(1){
-  min-width: var(--col-player);
-  width: var(--col-player);
   position: sticky;
   left: 0;
-  z-index: 5;
+  z-index: 7;
   background: rgba(255,255,255,.98);
 }
 
 .round-card .table-scroll th:nth-child(2),
 .round-card .table-scroll td:nth-child(2){
-  min-width: var(--col-hdcp);
-  width: var(--col-hdcp);
   position: sticky;
   left: var(--col-player);
-  z-index: 5;
+  z-index: 7;
   background: rgba(255,255,255,.98);
   box-shadow: 8px 0 0 rgba(148,163,184,.14);
 }
 
-/* keep inputs from expanding the sticky columns */
+/* Inputs shouldn’t stretch columns */
 .round-card .player-name-input{
   width: calc(var(--col-player) - 18px);
   max-width: calc(var(--col-player) - 18px);
@@ -612,5 +624,9 @@ code{
 .round-card .handicap-input{
   width: calc(var(--col-hdcp) - 18px);
   max-width: calc(var(--col-hdcp) - 18px);
+  text-align: center;
+}
+.round-card td input.score-input{
+  width: calc(var(--col-hole) - 8px);
   text-align: center;
 }
