@@ -47,6 +47,86 @@ function setStatus(text, mode = 'idle') {
   else if (mode === 'loading') statusDot.classList.add('loading');
 }
 
+function setupStickyActionBars() {
+  // ---------- Itinerary action bar ----------
+  const itineraryTab = document.getElementById('itineraryTab');
+  if (itineraryTab && !document.getElementById('itineraryActionBar')) {
+    const bar = document.createElement('div');
+    bar.id = 'itineraryActionBar';
+    bar.className = 'action-bar';
+
+    bar.innerHTML = `
+      <div class="left">
+        <div class="title">🗓️ Itinerary</div>
+        <div class="sub">Build the trip flow with blocks + linked rounds.</div>
+      </div>
+      <div class="right">
+        <button type="button" class="secondary small" id="generateDaysBtn">📅 Generate Days</button>
+        <button type="button" class="small" id="addDayBtn">➕ Add Day</button>
+      </div>
+    `;
+
+    itineraryTab.prepend(bar);
+
+    // Remove old "section-bar" to reduce clutter (optional)
+    const oldSectionBar = itineraryTab.querySelector('.section-bar');
+    if (oldSectionBar) oldSectionBar.remove();
+
+    bar.querySelector('#generateDaysBtn')?.addEventListener('click', () => {
+      const start = document.getElementById('tripStartDate')?.value;
+      const end = document.getElementById('tripEndDate')?.value;
+
+      if (!start || !end) {
+        toast('Set Start + End dates first', 'info');
+        return;
+      }
+
+      renderItineraryFromModel(generateDaysFromDateRange(start, end));
+      toast('Generated itinerary days', 'success');
+      markDirty('itinerary');
+    });
+  }
+
+  // ---------- Pairings action bar ----------
+  const pairingsTab = document.getElementById('pairingsTab');
+  if (pairingsTab && !document.getElementById('pairingsActionBar')) {
+    const bar = document.createElement('div');
+    bar.id = 'pairingsActionBar';
+    bar.className = 'action-bar';
+
+    bar.innerHTML = `
+      <div class="left">
+        <div class="title">🏌️ Pairings & Scores</div>
+        <div class="sub">Add rounds, enter scores, toggle Stableford.</div>
+      </div>
+      <div class="right" id="pairingsRightSlot">
+        <button type="button" class="secondary small" id="autoFoursomesAllBtn">👥 Auto Foursomes</button>
+        <button type="button" class="small" id="addRoundBtn">➕ Add Round</button>
+      </div>
+    `;
+
+    pairingsTab.prepend(bar);
+
+    // Remove only the "Rounds & Scores" section-bar (optional)
+    const oldBars = pairingsTab.querySelectorAll('.section-bar');
+    oldBars.forEach((b) => {
+      const title = b.querySelector('.section-title')?.textContent || '';
+      if (title.toLowerCase().includes('round')) b.remove();
+    });
+
+    bar.querySelector('#autoFoursomesAllBtn')?.addEventListener('click', () => {
+      const cards = Array.from(document.querySelectorAll('#roundsContainer .round-card'));
+      if (!cards.length) {
+        toast('Add a round first', 'info');
+        return;
+      }
+      cards.forEach((c) => c.querySelector('.auto-foursomes')?.click());
+      toast('Generated foursomes for all rounds', 'success');
+      markDirty('pairings');
+    });
+  }
+}
+
 function ensureToasts() {
   if (document.getElementById('toastHost')) return;
   const host = document.createElement('div');
@@ -62,6 +142,14 @@ function ensureToasts() {
 }
 
 function toast(message, kind = 'info', timeout = 2200) {
+  // ✅ dedupe: prevents waterfall spam
+  window.GTP = window.GTP || {};
+  const key = `${kind}:${message}`;
+  const now = Date.now();
+  if (window.GTP.__lastToastKey === key && (now - (window.GTP.__lastToastAt || 0)) < 1200) return;
+  window.GTP.__lastToastKey = key;
+  window.GTP.__lastToastAt = now;
+
   ensureToasts();
   const host = document.getElementById('toastHost');
   const el = document.createElement('div');
@@ -70,9 +158,7 @@ function toast(message, kind = 'info', timeout = 2200) {
   host.appendChild(el);
   requestAnimationFrame(() => el.classList.add('show'));
   setTimeout(() => {
-    el.classList.remove('show');toast('Trip saved.', 'success');
-    toast('Error saving trip — see console.', 'error', 3500);
-
+    el.classList.remove('show');
     setTimeout(() => el.remove(), 200);
   }, timeout);
 }
@@ -145,7 +231,8 @@ function ensurePairingsToolbar() {
   if (!pairingsTab) return;
 
   // Ensure sticky bars exist first
-  setupStickyActionBars();
+  if (typeof setupStickyActionBars === 'function') setupStickyActionBars();
+
 
   // Put Stableford controls in the sticky Pairings action bar
   const rightSlot = document.getElementById('pairingsRightSlot');
