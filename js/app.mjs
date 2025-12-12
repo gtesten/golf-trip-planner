@@ -331,7 +331,7 @@ function setupButtons() {
         return;
       }
       container.appendChild(createDayCard());
-      return;
+      container.lastElementChild.querySelector('textarea')?.focus();
     }
 
     const addRound = e.target.closest?.('#addRoundBtn');
@@ -388,10 +388,27 @@ async function initGolfTripPlanner() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('[GolfTripPlanner] DOMContentLoaded fired');
-  initGolfTripPlanner().catch((err) => {
-    console.error('[GolfTripPlanner] init error:', err);
-    setStatus('Init error – see console.', 'error');
-  });
+document.addEventListener('click', (e) => {
+  const addRound = e.target.closest?.('#addRoundBtn');
+  if (addRound) {
+
+    const players = getPlayersFromTextarea();
+
+    // 🚫 Guard: must have players before adding a round
+    if (!players || players.length === 0) {
+      alert('Please add players before creating a round.');
+      return;
+    }
+
+    const roundsContainer = document.getElementById('roundsContainer');
+    if (!roundsContainer) return;
+
+    const card = createRoundCard({}, players);
+    roundsContainer.appendChild(card);
+
+    // 🎯 Nice UX: focus first score input
+    card.querySelector('input.score-input')?.focus();
+    return;
+  }
 });
+

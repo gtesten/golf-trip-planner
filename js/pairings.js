@@ -13,91 +13,78 @@ export function getPlayersFromTextarea() {
 }
 
 export function createRoundCard(round = {}, players = []) {
-  const {
-    date = '',
-    course = '',
-    tee_time = '',
-    format = '',
-    scores = [],
-  } = round;
-
   const card = document.createElement('div');
   card.className = 'round-card';
 
   card.innerHTML = `
     <div class="round-header">
-      <div>
-        <div class="pill-label">Date</div>
-        <input type="date" class="round-date" value="${date || ''}">
+      <div class="stack">
+        <label>Course</label>
+        <input type="text" class="round-course" placeholder="Course name" value="${round.course || ''}">
       </div>
-      <div>
-        <div class="pill-label">Tee Time</div>
-        <input type="time" class="round-tee-time" value="${tee_time || ''}">
+
+      <div class="stack">
+        <label>Date</label>
+        <input type="date" class="round-date" value="${round.date || ''}">
       </div>
-      <div style="flex:1; min-width:160px;">
-        <div class="pill-label">Course</div>
-        <input type="text" class="round-course" placeholder="Forest Dunes" value="${escapeAttr(course || '')}">
-      </div>
-      <div style="flex:1; min-width:160px;">
-        <div class="pill-label">Format</div>
-        <input type="text" class="round-format" placeholder="Stroke play, Best Ball, Scramble…" value="${escapeAttr(format || '')}">
-      </div>
-      <button type="button" class="small danger remove-round" title="Remove round">✕</button>
+
+      <button class="small danger remove-round">✕ Remove</button>
     </div>
 
-    <div class="section-bar">
-      <div class="pill-label">Scores</div>
-      <button type="button" class="small secondary sync-players">Sync players & rows</button>
-    </div>
-
-    <table class="round-scores-table">
+    <table class="score-table">
       <thead>
         <tr>
-          <th style="width:35%;">Player</th>
-          <th style="width:15%;">Score</th>
-          <th>Notes</th>
+          <th>Player</th>
+          ${Array.from({ length: 18 }, (_, i) => `<th>${i + 1}</th>`).join('')}
+          <th>Total</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
   `;
 
-  // Remove round
-  card.querySelector('.remove-round').addEventListener('click', () => card.remove());
-
   const tbody = card.querySelector('tbody');
 
-  function renderScoreRows(currentPlayers, currentScores) {
-    tbody.innerHTML = '';
+  const roundPlayers = round.players || players.map(name => ({
+    name,
+    scores: Array(18).fill('')
+  }));
 
-    currentPlayers.forEach((playerName) => {
-      const existing = currentScores.find((s) => s.player === playerName) || {};
-      const tr = document.createElement('tr');
+  roundPlayers.forEach(player => {
+    const tr = document.createElement('tr');
 
-      tr.innerHTML = `
-        <td><input type="text" class="score-player" value="${escapeAttr(playerName)}"></td>
-        <td><input type="number" class="score-value" placeholder="72" value="${existing.score ?? ''}"></td>
-        <td><input type="text" class="score-notes" placeholder="Birdies, skins, etc." value="${escapeAttr(existing.notes ?? '')}"></td>
-      `;
+    tr.innerHTML = `
+      <td><strong>${player.name}</strong></td>
+      ${player.scores.map((s, i) => `
+        <td>
+          <input type="number" min="1" max="15"
+            data-hole="${i}"
+            value="${s ?? ''}"
+            class="score-input">
+        </td>
+      `).join('')}
+      <td class="total-cell">0</td>
+    `;
 
-      tbody.appendChild(tr);
+    tbody.appendChild(tr);
+
+    // Auto-calc total
+    tr.addEventListener('input', () => {
+      const total = [...tr.querySelectorAll('.score-input')]
+        .map(i => parseInt(i.value, 10))
+        .filter(n => !isNaN(n))
+        .reduce((a, b) => a + b, 0);
+
+      tr.querySelector('.total-cell').textContent = total || '';
     });
-  }
-
-  const basePlayers =
-    players.length ? players : scores.map((s) => s.player).filter(Boolean);
-
-  renderScoreRows(basePlayers, scores);
-
-  // Sync players button: preserves existing scores by matching player name
-  card.querySelector('.sync-players').addEventListener('click', () => {
-    const updatedPlayers = getPlayersFromTextarea();
-    const currentScores = getScoresForRoundCard(card);
-    renderScoreRows(updatedPlayers, currentScores);
   });
+
+  // Remove round
+  card.querySelector('.remove-round').onclick = () => card.remove();
 
   return card;
 }
+
 
 export function renderPairingsFromModel(model) {
   const playersArea = document.getElementById('playersInput');
@@ -123,29 +110,28 @@ export function renderPairingsFromModel(model) {
 }
 
 export function getPairingsModelFromDOM() {
-  const players = getPlayersFromTextarea();
-  const roundsContainer = document.getElementById('roundsContainer');
-  if (!roundsContainer) return { players: [], rounds: [] };
+  const rounds = [];
 
-  const cards = Array.from(roundsContainer.querySelectorAll('.round-card'));
+  document.querySelectorAll('.round-card').forEach(card => {
+    const course = card.querySelector('.round-course')?.value || '';
+    const date = card.querySelector('.round-date')?.value || '';
 
-  const rounds = cards.map((card) => {
-    const date = card.querySelector('.round-date')?.value || null;
-    const tee = card.querySelector('.round-tee-time')?.value || null;
-    const course = card.querySelector('.round-course')?.value || null;
-    const format = card.querySelector('.round-format')?.value || null;
+    const players = [];
 
-    return {
-      date,
-      tee_time: tee,
-      course,
-      format,
-      scores: getScoresForRoundCard(card),
-    };
+    card.querySelectorAll('tbody tr').forEach(row => {
+      const name = row.querySelector('td strong')?.textContent || '';
+      const scores = [...row.querySelectorAll('.score-input')]
+        .map(i => i.value ? parseInt(i.value, 10) : null);
+
+      players.push({ name, scores });
+    });
+
+    rounds.push({ course, date, players });
   });
 
-  return { players, rounds };
+  return { rounds };
 }
+
 
 // ----- Internal helpers -----
 

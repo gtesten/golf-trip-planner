@@ -4,41 +4,38 @@
 'use strict';
 
 export function createDayCard(day = {}) {
-  const { date = '', label = '', morning = '', afternoon = '', notes = '' } = day;
-
   const card = document.createElement('div');
   card.className = 'day-card';
 
   card.innerHTML = `
     <div class="day-header">
-      <div>
-        <div class="pill-label">Day Date</div>
-        <input type="date" class="day-date" value="${date || ''}">
+      <div class="stack">
+        <label>Date</label>
+        <input type="date" class="day-date" value="${day.date || ''}">
       </div>
-      <div style="flex:1; min-width:160px;">
-        <div class="pill-label">Day Label</div>
-        <input type="text" class="day-label" placeholder="Day 1 – Arrival / Warm-up" value="${escapeAttr(label || '')}">
-      </div>
-      <button type="button" class="small danger remove-day" title="Remove day">✕</button>
+
+      <button class="small danger remove-day">✕ Remove</button>
     </div>
+
     <div class="grid">
       <div>
         <label>Morning</label>
-        <textarea class="day-morning" placeholder="Breakfast, range session, morning round">${escapeText(morning || '')}</textarea>
+        <textarea class="day-morning" placeholder="Travel, breakfast, warm-up...">${day.morning || ''}</textarea>
       </div>
+
       <div>
-        <label>Afternoon / Evening</label>
-        <textarea class="day-afternoon" placeholder="Afternoon round, dinner, games">${escapeText(afternoon || '')}</textarea>
+        <label>Afternoon</label>
+        <textarea class="day-afternoon" placeholder="Tee time, lunch, activities...">${day.afternoon || ''}</textarea>
       </div>
-    </div>
-    <div>
-      <label>Notes</label>
-      <textarea class="day-notes" placeholder="Shuttles, carpool, special notes, etc.">${escapeText(notes || '')}</textarea>
+
+      <div>
+        <label>Evening / Notes</label>
+        <textarea class="day-notes" placeholder="Dinner, drinks, notes...">${day.notes || ''}</textarea>
+      </div>
     </div>
   `;
 
-  const removeBtn = card.querySelector('.remove-day');
-  removeBtn.addEventListener('click', () => card.remove());
+  card.querySelector('.remove-day').onclick = () => card.remove();
 
   return card;
 }
@@ -62,25 +59,15 @@ export function renderItineraryFromModel(model) {
 }
 
 export function getItineraryModelFromDOM() {
-  const container = document.getElementById('itineraryDaysContainer');
-  if (!container) return { days: [] };
+  const days = [];
 
-  const cards = Array.from(container.querySelectorAll('.day-card'));
-
-  const days = cards.map((card) => {
-    const dateEl = card.querySelector('.day-date');
-    const labelEl = card.querySelector('.day-label');
-    const morningEl = card.querySelector('.day-morning');
-    const afternoonEl = card.querySelector('.day-afternoon');
-    const notesEl = card.querySelector('.day-notes');
-
-    return {
-      date: dateEl?.value || null,
-      label: labelEl?.value || null,
-      morning: morningEl?.value || null,
-      afternoon: afternoonEl?.value || null,
-      notes: notesEl?.value || null,
-    };
+  document.querySelectorAll('.day-card').forEach(card => {
+    days.push({
+      date: card.querySelector('.day-date')?.value || '',
+      morning: card.querySelector('.day-morning')?.value || '',
+      afternoon: card.querySelector('.day-afternoon')?.value || '',
+      notes: card.querySelector('.day-notes')?.value || ''
+    });
   });
 
   return { days };
