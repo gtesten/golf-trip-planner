@@ -325,15 +325,10 @@ input:focus, textarea:focus{
   gap: 1rem;
 }
 
+/* Safe generic table styling */
 table{
-  width:100%;
   border-collapse: separate;
   border-spacing: 0;
-  margin-top: .55rem;
-  overflow:hidden;
-  border-radius: 14px;
-  border: 1px solid rgba(148,163,184,.25);
-  background: rgba(255,255,255,.96);
 }
 
 th, td{
@@ -510,9 +505,7 @@ code{
   max-width: 520px;
 }
 
-/* Round cards: reduce visual bulk */
-.round-card .hint{ margin-top: .25rem; }
-.round-card table{ margin-top: .4rem; }
+
 /* --- Pairings: 2-column layout on desktop --- */
 @media (min-width: 980px){
   #pairingsTab .stack{
@@ -550,14 +543,6 @@ code{
   background: rgba(255,255,255,.96);
 }
 
-/* Make the table behave nicely inside scroll */
-.round-card table{
-  width: max-content;     /* expands to fit columns */
-  min-width: 100%;        /* but never smaller than card */
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
 /* Slightly tighter cells so it fits better */
 .round-card th, .round-card td{
   padding: .42rem .45rem;
@@ -567,11 +552,6 @@ code{
   width: 42px;
   text-align: center;
 }
-/* Deterministic table sizing */
-.round-card .score-table{
-  table-layout: fixed;
-}
-
 /* Column widths via colgroup */
 :root{
   --col-player: 170px;
@@ -629,4 +609,95 @@ code{
 .round-card td input.score-input{
   width: calc(var(--col-hole) - 8px);
   text-align: center;
+}
+/* ===========================
+   SCORE TABLE (FIXED + STICKY)
+   =========================== */
+
+/* Generic tables inside round-card EXCEPT the score table */
+.round-card table:not(.score-table){
+  width: 100%;
+}
+
+/* Scroll container */
+.round-card .table-scroll{
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(148,163,184,.25);
+  background: rgba(255,255,255,.96);
+  position: relative;
+}
+
+/* Deterministic sizing */
+:root{
+  --col-player: 170px;
+  --col-hdcp: 72px;
+  --col-hole: 44px;
+  --col-outin: 56px;
+  --col-total: 70px;
+
+  /* 170 + 72 + (18*44=792) + (2*56=112) + (2*70=140) = 1286 */
+  --score-table-width: 1286px;
+}
+
+.round-card .score-table{
+  table-layout: fixed;
+  width: var(--score-table-width);
+  min-width: 100%;
+}
+
+.round-card .score-table col.col-player{ width: var(--col-player); }
+.round-card .score-table col.col-hdcp{ width: var(--col-hdcp); }
+.round-card .score-table col.col-hole{ width: var(--col-hole); }
+.round-card .score-table col.col-outin{ width: var(--col-outin); }
+.round-card .score-table col.col-total{ width: var(--col-total); }
+
+/* Slightly tighter cells */
+.round-card .score-table th,
+.round-card .score-table td{
+  padding: .42rem .45rem;
+  white-space: nowrap;
+}
+
+/* Inputs */
+.round-card .score-table td input.score-input{
+  width: calc(var(--col-hole) - 8px);
+  text-align: center;
+}
+.round-card .player-name-input{
+  width: calc(var(--col-player) - 18px);
+  max-width: calc(var(--col-player) - 18px);
+}
+.round-card .handicap-input{
+  width: calc(var(--col-hdcp) - 18px);
+  max-width: calc(var(--col-hdcp) - 18px);
+  text-align: center;
+}
+
+/* Sticky header */
+.round-card .table-scroll thead th{
+  position: sticky;
+  top: 0;
+  z-index: 6;
+}
+
+/* Sticky left columns */
+.round-card .table-scroll th:nth-child(1),
+.round-card .table-scroll td:nth-child(1){
+  position: sticky;
+  left: 0;
+  z-index: 7;
+  background: rgba(255,255,255,.98);
+}
+
+.round-card .table-scroll th:nth-child(2),
+.round-card .table-scroll td:nth-child(2){
+  position: sticky;
+  left: var(--col-player);
+  z-index: 7;
+  background: rgba(255,255,255,.98);
+  box-shadow: 8px 0 0 rgba(148,163,184,.14);
 }
