@@ -430,6 +430,12 @@ function holeCell(value, holeIndex) {
 }
 
 function recalcRow(tr, roundCard, getStablefordMode) {
+  const setCell = (sel, value) => {
+    const el = tr.querySelector(sel);
+    if (!el) return;
+    el.textContent = value ?? '';
+  };
+
   const inputs = Array.from(tr.querySelectorAll('.score-input'));
   const scores = inputs.map((inp) => {
     const v = inp.value;
@@ -445,18 +451,21 @@ function recalcRow(tr, roundCard, getStablefordMode) {
   const hdcpRaw = tr.querySelector('.handicap-input')?.value;
   const hdcp = hdcpRaw !== '' && hdcpRaw != null ? parseInt(hdcpRaw, 10) : null;
 
-  tr.querySelector('.out-cell').textContent = out ? String(out) : '';
-  tr.querySelector('.in-cell').textContent = inn ? String(inn) : '';
-  tr.querySelector('.gross-cell').textContent = gross ? String(gross) : '';
+  setCell('.out-cell', out ? String(out) : '');
+  setCell('.in-cell', inn ? String(inn) : '');
+  setCell('.gross-cell', gross ? String(gross) : '');
 
   if (gross && Number.isFinite(hdcp)) {
-    tr.querySelector('.net-cell').textContent = String(gross - hdcp);
+    setCell('.net-cell', String(gross - hdcp));
   } else {
-    tr.querySelector('.net-cell').textContent = '';
+    setCell('.net-cell', '');
   }
 
   const stblCell = tr.querySelector('.stbl-cell');
   const mode = getStablefordMode?.() || { enabled: false, net: true };
+
+  // If Stableford column isn't present in this DOM, just don't compute it
+  if (!stblCell) return;
 
   if (!mode.enabled) {
     stblCell.textContent = '';
