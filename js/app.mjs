@@ -1,4 +1,4 @@
-// js/main.js
+// js/app.mjs
 // App orchestrator: tabs, buttons, state, Supabase CRUD, UI <-> data
 
 'use strict';
@@ -29,8 +29,6 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 console.log('[GolfTripPlanner] readyState on load:', document.readyState);
 
-
-
 let currentTripPublicId = null;
 
 // -----------------------------
@@ -47,6 +45,118 @@ function setStatus(text, mode = 'idle') {
   if (mode === 'ok') statusDot.classList.add('ok');
   else if (mode === 'error') statusDot.classList.add('error');
   else if (mode === 'loading') statusDot.classList.add('loading');
+}
+
+// -----------------------------
+// Save badge + autosave
+// -----------------------------
+let dirty = false;
+let autosaveTimer = null;
+
+function ensureSaveBadge() {
+  const statusBar = document.getElementById('statusBar');
+  if (!statusBar) return;
+  if (document.getElementById('saveStatus')) return;
+
+  const badge = document.createElement('span');
+  badge.id = 'saveStatus';
+  badge.style.marginLeft = '10px';
+  badge.style.padding = '2px 10px';
+  badge.style.borderRadius = '999px';
+  badge.style.fontSize = '0.8rem';
+  badge.style.background = 'rgba(255,255,255,.18)';
+  badge.style.border = '1px solid rgba(255,255,255,.18)';
+  badge.textContent = 'Saved';
+  statusBar.appendChild(badge);
+}
+
+function setSaveStatus(text, isDirty) {
+  ensureSaveBadge();
+  const el = document.getElementById('saveStatus');
+  if (!el) return;
+  el.textContent = text;
+  el.style.background = isDirty ? 'rgba(249,115,22,.25)' : 'rgba(255,255,255,.18)';
+}
+
+function markDirty(source = '') {
+  dirty = true;
+  setSaveStatus(`Unsaved${source ? ` (${source})` : ''}`, true);
+
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(async () => {
+    try {
+      await saveCurrentTrip({ silent: true });
+      dirty = false;
+      setSaveStatus('Saved', false);
+    } catch (e) {
+      console.error('[GolfTripPlanner] autosave failed', e);
+      setSaveStatus('Save failed', true);
+    }
+  }, 950);
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if (!dirty) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
+
+// -----------------------------
+// Stableford toggle state + UI
+// -----------------------------
+const stablefordState = { enabled: false, net: true };
+
+function getStablefordMode() {
+  return { ...stablefordState };
+}
+
+function ensurePairingsToolbar() {
+  const pairingsTab = document.getElementById('pairingsTab');
+  if (!pairingsTab) return;
+  if (document.getElementById('pairingsToolbar')) return;
+
+  const toolbar = document.createElement('div');
+  toolbar.id = 'pairingsToolbar';
+  toolbar.style.display = 'flex';
+  toolbar.style.flexWrap = 'wrap';
+  toolbar.style.gap = '0.5rem';
+  toolbar.style.alignItems = 'center';
+  toolbar.style.margin = '0.25rem 0 0.75rem 0';
+
+  toolbar.innerHTML = `
+    <button type="button" class="secondary small" id="stablefordToggleBtn">🏆 Stableford: Off</button>
+    <button type="button" class="secondary small" id="stablefordModeBtn" disabled>Net</button>
+    <span class="hint" style="margin:0;">Stableford uses each round’s ⛳ Setup (Par + SI).</span>
+  `;
+
+  const stack = pairingsTab.querySelector('.stack');
+  if (stack) stack.prepend(toolbar);
+  else pairingsTab.prepend(toolbar);
+
+  const toggleBtn = toolbar.querySelector('#stablefordToggleBtn');
+  const modeBtn = toolbar.querySelector('#stablefordModeBtn');
+
+  toggleBtn.addEventListener('click', () => {
+    stablefordState.enabled = !stablefordState.enabled;
+    toggleBtn.textContent = `🏆 Stableford: ${stablefordState.enabled ? 'On' : 'Off'}`;
+    modeBtn.disabled = !stablefordState.enabled;
+
+    rerenderPairingsFromDOM();
+    markDirty('pairings');
+  });
+
+  modeBtn.addEventListener('click', () => {
+    stablefordState.net = !stablefordState.net;
+    modeBtn.textContent = stablefordState.net ? 'Net' : 'Gross';
+
+    rerenderPairingsFromDOM();
+    markDirty('pairings');
+  });
+}
+
+function rerenderPairingsFromDOM() {
+  const model = getPairingsModelFromDOM();
+  renderPairingsFromModel(model, { getStablefordMode });
 }
 
 // -----------------------------
@@ -131,18 +241,7 @@ function populateUIFromTripRow(tripRow) {
   if (startInput && tripRow.start_date) startInput.value = tripRow.start_date;
   if (endInput && tripRow.end_date) endInput.value = tripRow.end_date;
 
-  // Itinerary
-  let itineraryModel = { days: [] };
-  if (typeof tripRow.itinerary_data === 'string' && tripRow.itinerary_data.trim()) {
-    try {
-      itineraryModel = JSON.parse(tripRow.itinerary_data);
-    } catch (e) {
-      console.warn('[GolfTripPlanner] Could not parse itinerary_data:', e);
-    }
-  }
-  renderItineraryFromModel(itineraryModel);
-
-  // Pairings
+  // Pairings first (so itinerary round-link dropdowns can populate)
   let pairingsModel = { players: [], rounds: [] };
   if (typeof tripRow.pairings_data === 'string' && tripRow.pairings_data.trim()) {
     try {
@@ -151,7 +250,19 @@ function populateUIFromTripRow(tripRow) {
       console.warn('[GolfTripPlanner] Could not parse pairings_data:', e);
     }
   }
-  renderPairingsFromModel(pairingsModel);
+  ensurePairingsToolbar();
+  renderPairingsFromModel(pairingsModel, { getStablefordMode });
+
+  // Itinerary (now supports structured blocks + round linking)
+  let itineraryModel = { days: [] };
+  if (typeof tripRow.itinerary_data === 'string' && tripRow.itinerary_data.trim()) {
+    try {
+      itineraryModel = JSON.parse(tripRow.itinerary_data);
+    } catch (e) {
+      console.warn('[GolfTripPlanner] Could not parse itinerary_data:', e);
+    }
+  }
+  renderItineraryFromModel(itineraryModel, { pairingsModel });
 
   // Expenses / sharing
   const expensesArea = document.getElementById('expensesData');
@@ -166,7 +277,6 @@ function populateUIFromTripRow(tripRow) {
 async function createNewTripAndLoad() {
   setStatus('Creating new trip…', 'loading');
 
-  // Auto-generate days if empty and dates exist
   const existingItin = getItineraryModelFromDOM();
   const start = document.getElementById('tripStartDate')?.value;
   const end = document.getElementById('tripEndDate')?.value;
@@ -202,6 +312,9 @@ async function createNewTripAndLoad() {
   storeCurrentTripId(data.public_id);
   populateUIFromTripRow(data);
   setStatus('New trip created & loaded.', 'ok');
+
+  dirty = false;
+  setSaveStatus('Saved', false);
 }
 
 async function loadTripFromSupabase(publicId) {
@@ -225,10 +338,12 @@ async function loadTripFromSupabase(publicId) {
   storeCurrentTripId(data.public_id);
   populateUIFromTripRow(data);
   setStatus('Trip loaded from Supabase.', 'ok');
+
+  dirty = false;
+  setSaveStatus('Saved', false);
 }
 
-async function saveCurrentTrip() {
-  // Auto-generate days if empty and dates exist
+async function saveCurrentTrip({ silent = false } = {}) {
   const existingItin = getItineraryModelFromDOM();
   const start = document.getElementById('tripStartDate')?.value;
   const end = document.getElementById('tripEndDate')?.value;
@@ -239,13 +354,12 @@ async function saveCurrentTrip() {
 
   const tripData = collectTripDataFromUI();
 
-  // If no trip id yet, create
   if (!currentTripPublicId) {
     await createNewTripAndLoad();
     return;
   }
 
-  setStatus('Saving trip…', 'loading');
+  if (!silent) setStatus('Saving trip…', 'loading');
 
   const { error } = await supabaseClient
     .from('trips')
@@ -263,12 +377,12 @@ async function saveCurrentTrip() {
 
   if (error) {
     console.error('[GolfTripPlanner] Error saving trip:', error);
-    setStatus('Error saving trip – see console.', 'error');
-    alert('Error saving trip. Check console for details.');
-    return;
+    if (!silent) setStatus('Error saving trip – see console.', 'error');
+    if (!silent) alert('Error saving trip. Check console for details.');
+    throw error;
   }
 
-  setStatus('Trip saved successfully.', 'ok');
+  if (!silent) setStatus('Trip saved successfully.', 'ok');
 }
 
 // -----------------------------
@@ -294,7 +408,6 @@ function setupTabs() {
 function setupButtons() {
   console.log('[GolfTripPlanner] setupButtons starting…');
 
-  // Core buttons
   document.getElementById('newTripBtn')?.addEventListener('click', () => {
     console.log('[GolfTripPlanner] newTripBtn clicked');
     createNewTripAndLoad();
@@ -302,7 +415,10 @@ function setupButtons() {
 
   document.getElementById('saveTripBtn')?.addEventListener('click', () => {
     console.log('[GolfTripPlanner] saveTripBtn clicked');
-    saveCurrentTrip();
+    saveCurrentTrip({ silent: false }).then(() => {
+      dirty = false;
+      setSaveStatus('Saved', false);
+    });
   });
 
   document.getElementById('reloadTripBtn')?.addEventListener('click', async () => {
@@ -328,7 +444,7 @@ function setupButtons() {
     alert('Debug info logged to console.');
   });
 
-  // ✅ Delegated clicks: Add Day / Add Round
+  // Delegated clicks: Add Day / Add Round
   document.addEventListener('click', (e) => {
     const addDay = e.target.closest?.('#addDayBtn');
     if (addDay) {
@@ -338,8 +454,9 @@ function setupButtons() {
         console.warn('[GolfTripPlanner] itineraryDaysContainer missing');
         return;
       }
-      container.appendChild(createDayCard());
+      container.appendChild(createDayCard({}, { pairingsModel: getPairingsModelFromDOM() }));
       container.lastElementChild.querySelector('textarea')?.focus();
+      markDirty('itinerary');
     }
 
     const addRound = e.target.closest?.('#addRoundBtn');
@@ -350,41 +467,64 @@ function setupButtons() {
         console.warn('[GolfTripPlanner] roundsContainer missing');
         return;
       }
-      roundsContainer.appendChild(createRoundCard({}, getPlayersFromTextarea()));
+      roundsContainer.appendChild(createRoundCard({ id: crypto.randomUUID() }, getPlayersFromTextarea(), { getStablefordMode }));
+      markDirty('pairings');
       return;
     }
   });
 
-  // Diagnostics: ensure buttons exist and are clickable
+  // Diagnostics
   const addDayBtn = document.getElementById('addDayBtn');
   const addRoundBtn = document.getElementById('addRoundBtn');
 
-
-  if (addDayBtn) {
-    const r = addDayBtn.getBoundingClientRect();
-    console.log('[GolfTripPlanner] addDayBtn rect', r);
-  }
-  if (addRoundBtn) {
-    const r = addRoundBtn.getBoundingClientRect();
-    console.log('[GolfTripPlanner] addRoundBtn rect', r);
-  }
+  if (addDayBtn) console.log('[GolfTripPlanner] addDayBtn rect', addDayBtn.getBoundingClientRect());
+  if (addRoundBtn) console.log('[GolfTripPlanner] addRoundBtn rect', addRoundBtn.getBoundingClientRect());
 }
 
+// -----------------------------
+// Dirty tracking
+// -----------------------------
+function setupDirtyTracking() {
+  document.addEventListener('input', (e) => {
+    const inMain = e.target?.closest('main');
+    if (!inMain) return;
+
+    if (e.target?.id === 'itineraryData' || e.target?.id === 'pairingsData') return;
+
+    const src = e.target.closest('#pairingsTab')
+      ? 'pairings'
+      : e.target.closest('#itineraryTab')
+        ? 'itinerary'
+        : e.target.closest('#detailsTab')
+          ? 'details'
+          : e.target.closest('#expensesTab')
+            ? 'expenses'
+            : e.target.closest('#sharingTab')
+              ? 'sharing'
+              : '';
+
+    markDirty(src);
+  });
+}
 
 // -----------------------------
 // Init
 // -----------------------------
 async function initGolfTripPlanner() {
+  ensureSaveBadge();
+  setSaveStatus('Saved', false);
+
   setStatus('Initializing Golf Trip Planner…', 'loading');
 
   setupTabs();
   setupButtons();
+  setupDirtyTracking();
   console.log('[GolfTripPlanner] initGolfTripPlanner finished wiring UI');
 
-
   // Initial empty UI before Supabase
-  renderItineraryFromModel({ days: [] });
-  renderPairingsFromModel({ players: [], rounds: [] });
+  renderItineraryFromModel({ days: [] }, { pairingsModel: { rounds: [] } });
+  ensurePairingsToolbar();
+  renderPairingsFromModel({ players: [], rounds: [] }, { getStablefordMode });
 
   await ensureAnonymousSession(setStatus);
 
@@ -410,9 +550,6 @@ if (document.readyState === 'loading') {
     boot();
   });
 } else {
-  // DOM already loaded
   console.log('[GolfTripPlanner] DOM already ready:', document.readyState);
   boot();
 }
-
-
