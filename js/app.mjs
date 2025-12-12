@@ -495,12 +495,33 @@ function setupButtons() {
   console.log('[GolfTripPlanner] setupButtons starting…');
 
   // Core buttons
-  document.getElementById('newTripBtn')?.addEventListener('click', async () => {
-    console.log('[GolfTripPlanner] newTripBtn clicked');
-    try {
-      await createNewTripAndLoad();
-    } catch {}
-  });
+  document.addEventListener('click', (e) => {
+  const el = (e.target instanceof Element) ? e.target : e.target?.parentElement;
+  if (!el) return;
+
+  const addDay = el.closest('#addDayBtn');
+  if (addDay) {
+    console.log('[GolfTripPlanner] Add Day clicked');
+    const container = document.getElementById('itineraryDaysContainer');
+    if (!container) return;
+    container.appendChild(createDayCard());
+    container.lastElementChild?.querySelector('textarea')?.focus();
+    markDirty('itinerary');
+    return;
+  }
+
+  const addRound = el.closest('#addRoundBtn');
+  if (addRound) {
+    console.log('[GolfTripPlanner] Add Round clicked');
+    const roundsContainer = document.getElementById('roundsContainer');
+    if (!roundsContainer) return;
+    const card = createRoundCard({}, getPlayersFromTextarea());
+    roundsContainer.appendChild(card);
+    card.querySelector('.round-course')?.focus?.();
+    markDirty('pairings');
+    return;
+  }
+});
 
   document.getElementById('saveTripBtn')?.addEventListener('click', async () => {
     console.log('[GolfTripPlanner] saveTripBtn clicked');

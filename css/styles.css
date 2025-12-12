@@ -487,3 +487,29 @@ code{
 @media (max-width: 640px){
   .action-bar{ top: 182px; }
 }
+/* Better spacing / layout */
+.tab-panel.active { padding-top: .35rem; }
+
+/* Itinerary: make day cards more compact */
+.day-card .grid{
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.day-card textarea{
+  min-height: 110px;
+}
+
+/* Pairings: keep Players + Rounds cleaner */
+#pairingsTab .stack { gap: .75rem; }
+#playersInput { min-height: 140px; }
+
+/* Action bar: nicer alignment + less wrap chaos */
+.action-bar{
+  align-items: center;
+}
+.action-bar .sub{
+  max-width: 520px;
+}
+
+/* Round cards: reduce visual bulk */
+.round-card .hint{ margin-top: .25rem; }
+.round-card table{ margin-top: .4rem; }
