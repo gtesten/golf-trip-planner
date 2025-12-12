@@ -1,10 +1,6 @@
 // js/app.mjs
 // App orchestrator: tabs, buttons, state, Supabase CRUD, UI <-> data
-
 'use strict';
-// ✅ Safety stub so the app never bricks if sticky bars code isn't present yet
-function setupStickyActionBars() {}
-
 
 import { supabaseClient, ensureAnonymousSession } from './supabaseClient.js';
 import {
@@ -24,6 +20,7 @@ console.log('[GolfTripPlanner] main.js loaded');
 window.GTP = window.GTP || {};
 window.GTP.__loadedAt = new Date().toISOString();
 console.log('[GolfTripPlanner] main.js loaded at', window.GTP.__loadedAt);
+
 window.addEventListener('error', (e) => {
   console.error('[GolfTripPlanner] window.error:', e.message, e.filename, e.lineno, e.colno, e.error);
 });
@@ -35,101 +32,8 @@ console.log('[GolfTripPlanner] readyState on load:', document.readyState);
 let currentTripPublicId = null;
 
 // -----------------------------
-// Status UI
+// Toasts (non-blocking alerts)
 // -----------------------------
-function setStatus(text, mode = 'idle') {
-  const statusText = document.getElementById('statusText');
-  const statusDot = document.getElementById('statusDot');
-  if (!statusText || !statusDot) return;
-
-  statusText.textContent = text ?? '';
-
-  statusDot.classList.remove('ok', 'error', 'loading');
-  if (mode === 'ok') statusDot.classList.add('ok');
-  else if (mode === 'error') statusDot.classList.add('error');
-  else if (mode === 'loading') statusDot.classList.add('loading');
-}
-
-function setupStickyActionBars() {
-  // ---------- Itinerary action bar ----------
-  const itineraryTab = document.getElementById('itineraryTab');
-  if (itineraryTab && !document.getElementById('itineraryActionBar')) {
-    const bar = document.createElement('div');
-    bar.id = 'itineraryActionBar';
-    bar.className = 'action-bar';
-
-    bar.innerHTML = `
-      <div class="left">
-        <div class="title">🗓️ Itinerary</div>
-        <div class="sub">Build the trip flow with blocks + linked rounds.</div>
-      </div>
-      <div class="right">
-        <button type="button" class="secondary small" id="generateDaysBtn">📅 Generate Days</button>
-        <button type="button" class="small" id="addDayBtn">➕ Add Day</button>
-      </div>
-    `;
-
-    itineraryTab.prepend(bar);
-
-    // Remove old "section-bar" to reduce clutter (optional)
-    const oldSectionBar = itineraryTab.querySelector('.section-bar');
-    if (oldSectionBar) oldSectionBar.remove();
-
-    bar.querySelector('#generateDaysBtn')?.addEventListener('click', () => {
-      const start = document.getElementById('tripStartDate')?.value;
-      const end = document.getElementById('tripEndDate')?.value;
-
-      if (!start || !end) {
-        toast('Set Start + End dates first', 'info');
-        return;
-      }
-
-      renderItineraryFromModel(generateDaysFromDateRange(start, end));
-      toast('Generated itinerary days', 'success');
-      markDirty('itinerary');
-    });
-  }
-
-  // ---------- Pairings action bar ----------
-  const pairingsTab = document.getElementById('pairingsTab');
-  if (pairingsTab && !document.getElementById('pairingsActionBar')) {
-    const bar = document.createElement('div');
-    bar.id = 'pairingsActionBar';
-    bar.className = 'action-bar';
-
-    bar.innerHTML = `
-      <div class="left">
-        <div class="title">🏌️ Pairings & Scores</div>
-        <div class="sub">Add rounds, enter scores, toggle Stableford.</div>
-      </div>
-      <div class="right" id="pairingsRightSlot">
-        <button type="button" class="secondary small" id="autoFoursomesAllBtn">👥 Auto Foursomes</button>
-        <button type="button" class="small" id="addRoundBtn">➕ Add Round</button>
-      </div>
-    `;
-
-    pairingsTab.prepend(bar);
-
-    // Remove only the "Rounds & Scores" section-bar (optional)
-    const oldBars = pairingsTab.querySelectorAll('.section-bar');
-    oldBars.forEach((b) => {
-      const title = b.querySelector('.section-title')?.textContent || '';
-      if (title.toLowerCase().includes('round')) b.remove();
-    });
-
-    bar.querySelector('#autoFoursomesAllBtn')?.addEventListener('click', () => {
-      const cards = Array.from(document.querySelectorAll('#roundsContainer .round-card'));
-      if (!cards.length) {
-        toast('Add a round first', 'info');
-        return;
-      }
-      cards.forEach((c) => c.querySelector('.auto-foursomes')?.click());
-      toast('Generated foursomes for all rounds', 'success');
-      markDirty('pairings');
-    });
-  }
-}
-
 function ensureToasts() {
   if (document.getElementById('toastHost')) return;
   const host = document.createElement('div');
@@ -145,7 +49,7 @@ function ensureToasts() {
 }
 
 function toast(message, kind = 'info', timeout = 2200) {
-  // ✅ dedupe: prevents waterfall spam
+  // ✅ dedupe to prevent waterfall spam (especially autosave)
   window.GTP = window.GTP || {};
   const key = `${kind}:${message}`;
   const now = Date.now();
@@ -167,119 +71,61 @@ function toast(message, kind = 'info', timeout = 2200) {
 }
 
 // -----------------------------
-// Save badge + autosave
+// Status UI
+// -----------------------------
+function setStatus(text, mode = 'idle') {
+  const statusText = document.getElementById('statusText');
+  const statusDot = document.getElementById('statusDot');
+  if (!statusText || !statusDot) return;
+
+  statusText.textContent = text ?? '';
+
+  statusDot.classList.remove('ok', 'error', 'loading');
+  if (mode === 'ok') statusDot.classList.add('ok');
+  else if (mode === 'error') statusDot.classList.add('error');
+  else if (mode === 'loading') statusDot.classList.add('loading');
+}
+
+// -----------------------------
+// Dirty tracking + autosave
 // -----------------------------
 let dirty = false;
 let autosaveTimer = null;
+let saveInFlight = null;
 
-function ensureSaveBadge() {
-  const statusBar = document.getElementById('statusBar');
-  if (!statusBar) return;
-  if (document.getElementById('saveStatus')) return;
-
-  const badge = document.createElement('span');
-  badge.id = 'saveStatus';
-  badge.style.marginLeft = '10px';
-  badge.style.padding = '2px 10px';
-  badge.style.borderRadius = '999px';
-  badge.style.fontSize = '0.8rem';
-  badge.style.background = 'rgba(255,255,255,.18)';
-  badge.style.border = '1px solid rgba(255,255,255,.18)';
-  badge.textContent = 'Saved';
-  statusBar.appendChild(badge);
-}
-
-function setSaveStatus(text, isDirty) {
-  ensureSaveBadge();
-  const el = document.getElementById('saveStatus');
-  if (!el) return;
-  el.textContent = text;
-  el.style.background = isDirty ? 'rgba(249,115,22,.25)' : 'rgba(255,255,255,.18)';
-}
-
-function markDirty(source = '') {
+function markDirty(source = 'ui') {
   dirty = true;
-  setSaveStatus(`Unsaved${source ? ` (${source})` : ''}`, true);
+  setStatus('Unsaved changes…', 'loading');
 
-  clearTimeout(autosaveTimer);
+  // debounce autosave
+  if (autosaveTimer) clearTimeout(autosaveTimer);
   autosaveTimer = setTimeout(async () => {
+    if (!dirty) return;
+    if (!currentTripPublicId) return; // don’t autosave until a trip exists
     try {
       await saveCurrentTrip({ silent: true });
-      dirty = false;
-      setSaveStatus('Saved', false);
     } catch (e) {
-      console.error('[GolfTripPlanner] autosave failed', e);
-      setSaveStatus('Save failed', true);
+      console.warn('[GolfTripPlanner] autosave failed', e);
+      // no toast spam on autosave; status is enough
+      setStatus('Autosave failed — see console', 'error');
     }
-  }, 950);
+  }, 1200);
 }
 
-window.addEventListener('beforeunload', (e) => {
-  if (!dirty) return;
-  e.preventDefault();
-  e.returnValue = '';
-});
-
-// -----------------------------
-// Stableford toggle state + UI
-// -----------------------------
-const stablefordState = { enabled: false, net: true };
-
-function getStablefordMode() {
-  return { ...stablefordState };
+function clearDirty() {
+  dirty = false;
+  setStatus('All changes saved.', 'ok');
 }
 
-function ensurePairingsToolbar() {
-  const pairingsTab = document.getElementById('pairingsTab');
-  if (!pairingsTab) return;
-
-  // Ensure sticky bars exist first
-  if (typeof setupStickyActionBars === 'function') setupStickyActionBars();
-
-
-  // Put Stableford controls in the sticky Pairings action bar
-  const rightSlot = document.getElementById('pairingsRightSlot');
-  if (!rightSlot) return;
-  if (document.getElementById('stablefordToggleBtn')) return;
-
-  const toggleBtn = document.createElement('button');
-  toggleBtn.type = 'button';
-  toggleBtn.className = 'secondary small';
-  toggleBtn.id = 'stablefordToggleBtn';
-  toggleBtn.textContent = `🏆 Stableford: ${stablefordState.enabled ? 'On' : 'Off'}`;
-
-  const modeBtn = document.createElement('button');
-  modeBtn.type = 'button';
-  modeBtn.className = 'secondary small';
-  modeBtn.id = 'stablefordModeBtn';
-  modeBtn.textContent = stablefordState.net ? 'Net' : 'Gross';
-  modeBtn.disabled = !stablefordState.enabled;
-
-  // Insert Stableford buttons BEFORE Auto Foursomes / Add Round for nicer hierarchy
-  rightSlot.prepend(modeBtn);
-  rightSlot.prepend(toggleBtn);
-
-  toggleBtn.addEventListener('click', () => {
-    stablefordState.enabled = !stablefordState.enabled;
-    toggleBtn.textContent = `🏆 Stableford: ${stablefordState.enabled ? 'On' : 'Off'}`;
-    modeBtn.disabled = !stablefordState.enabled;
-
-    rerenderPairingsFromDOM();
-    markDirty('pairings');
+function setupDirtyTracking() {
+  // Mark dirty on most inputs
+  document.addEventListener('input', (e) => {
+    const t = e.target;
+    if (!t) return;
+    // ignore the hidden JSON fields that we write into programmatically
+    if (t.id === 'itineraryData' || t.id === 'pairingsData') return;
+    markDirty('input');
   });
-
-  modeBtn.addEventListener('click', () => {
-    stablefordState.net = !stablefordState.net;
-    modeBtn.textContent = stablefordState.net ? 'Net' : 'Gross';
-
-    rerenderPairingsFromDOM();
-    markDirty('pairings');
-  });
-}
-
-function rerenderPairingsFromDOM() {
-  const model = getPairingsModelFromDOM();
-  renderPairingsFromModel(model, { getStablefordMode });
 }
 
 // -----------------------------
@@ -364,19 +210,7 @@ function populateUIFromTripRow(tripRow) {
   if (startInput && tripRow.start_date) startInput.value = tripRow.start_date;
   if (endInput && tripRow.end_date) endInput.value = tripRow.end_date;
 
-  // Pairings first (so itinerary round-link dropdowns can populate)
-  let pairingsModel = { players: [], rounds: [] };
-  if (typeof tripRow.pairings_data === 'string' && tripRow.pairings_data.trim()) {
-    try {
-      pairingsModel = JSON.parse(tripRow.pairings_data);
-    } catch (e) {
-      console.warn('[GolfTripPlanner] Could not parse pairings_data:', e);
-    }
-  }
-  ensurePairingsToolbar();
-  renderPairingsFromModel(pairingsModel, { getStablefordMode });
-
-  // Itinerary (now supports structured blocks + round linking)
+  // Itinerary
   let itineraryModel = { days: [] };
   if (typeof tripRow.itinerary_data === 'string' && tripRow.itinerary_data.trim()) {
     try {
@@ -385,7 +219,18 @@ function populateUIFromTripRow(tripRow) {
       console.warn('[GolfTripPlanner] Could not parse itinerary_data:', e);
     }
   }
-  renderItineraryFromModel(itineraryModel, { pairingsModel });
+  renderItineraryFromModel(itineraryModel);
+
+  // Pairings
+  let pairingsModel = { players: [], rounds: [] };
+  if (typeof tripRow.pairings_data === 'string' && tripRow.pairings_data.trim()) {
+    try {
+      pairingsModel = JSON.parse(tripRow.pairings_data);
+    } catch (e) {
+      console.warn('[GolfTripPlanner] Could not parse pairings_data:', e);
+    }
+  }
+  renderPairingsFromModel(pairingsModel);
 
   // Expenses / sharing
   const expensesArea = document.getElementById('expensesData');
@@ -395,11 +240,118 @@ function populateUIFromTripRow(tripRow) {
 }
 
 // -----------------------------
+// Sticky action bars (no duplicate IDs)
+// -----------------------------
+function setupStickyActionBars() {
+  // ----- Itinerary bar -----
+  const itineraryTab = document.getElementById('itineraryTab');
+  if (itineraryTab && !document.getElementById('itineraryActionBar')) {
+    const bar = document.createElement('div');
+    bar.id = 'itineraryActionBar';
+    bar.className = 'action-bar';
+    bar.innerHTML = `
+      <div class="left">
+        <div class="title">🗓️ Itinerary</div>
+        <div class="sub">Keep the main actions visible while you scroll.</div>
+      </div>
+      <div class="right"></div>
+    `;
+    itineraryTab.prepend(bar);
+
+    const right = bar.querySelector('.right');
+
+    // Move existing Add Day button (keeps ID, avoids duplicates)
+    const addDayBtn = document.getElementById('addDayBtn');
+    if (addDayBtn && right) right.appendChild(addDayBtn);
+
+    // Add Generate Days button
+    const genBtn = document.createElement('button');
+    genBtn.type = 'button';
+    genBtn.className = 'secondary small';
+    genBtn.id = 'generateDaysBtn';
+    genBtn.textContent = '📅 Generate Days';
+    right?.prepend(genBtn);
+
+    genBtn.addEventListener('click', () => {
+      const start = document.getElementById('tripStartDate')?.value;
+      const end = document.getElementById('tripEndDate')?.value;
+      if (!start || !end) {
+        toast('Set Start + End dates first', 'info');
+        return;
+      }
+      renderItineraryFromModel(generateDaysFromDateRange(start, end));
+      toast('Generated itinerary days', 'success');
+      markDirty('itinerary');
+    });
+
+    // Remove old section bar if present (prevents double headers)
+    const oldSectionBar = itineraryTab.querySelector('.section-bar');
+    if (oldSectionBar) oldSectionBar.remove();
+  }
+
+  // ----- Pairings bar -----
+  const pairingsTab = document.getElementById('pairingsTab');
+  if (pairingsTab && !document.getElementById('pairingsActionBar')) {
+    const bar = document.createElement('div');
+    bar.id = 'pairingsActionBar';
+    bar.className = 'action-bar';
+    bar.innerHTML = `
+      <div class="left">
+        <div class="title">🏌️ Pairings & Scores</div>
+        <div class="sub">Rounds + scoring controls stay visible.</div>
+      </div>
+      <div class="right" id="pairingsRightSlot"></div>
+    `;
+    pairingsTab.prepend(bar);
+
+    const right = bar.querySelector('#pairingsRightSlot');
+
+    // Add Auto-foursomes (clicks each round's internal button if present)
+    const autoBtn = document.createElement('button');
+    autoBtn.type = 'button';
+    autoBtn.className = 'secondary small';
+    autoBtn.id = 'autoFoursomesAllBtn';
+    autoBtn.textContent = '👥 Auto Foursomes';
+    right?.appendChild(autoBtn);
+
+    autoBtn.addEventListener('click', () => {
+      const cards = Array.from(document.querySelectorAll('#roundsContainer .round-card'));
+      if (!cards.length) {
+        toast('Add a round first', 'info');
+        return;
+      }
+      let clicked = 0;
+      cards.forEach((c) => {
+        const b = c.querySelector('.auto-foursomes');
+        if (b) {
+          b.click();
+          clicked += 1;
+        }
+      });
+      toast(clicked ? 'Generated foursomes' : 'No foursomes button found in rounds yet', clicked ? 'success' : 'info');
+      markDirty('pairings');
+    });
+
+    // Move existing Add Round button (keeps ID, avoids duplicates)
+    const addRoundBtn = document.getElementById('addRoundBtn');
+    if (addRoundBtn && right) right.appendChild(addRoundBtn);
+
+    // Remove old "Rounds & Scores" section bars if present
+    const oldBars = pairingsTab.querySelectorAll('.section-bar');
+    oldBars.forEach((b) => {
+      const title = b.querySelector('.section-title')?.textContent || '';
+      if (title.toLowerCase().includes('round')) b.remove();
+    });
+  }
+}
+
+// -----------------------------
 // Supabase CRUD
 // -----------------------------
 async function createNewTripAndLoad() {
   setStatus('Creating new trip…', 'loading');
 
+  // Auto-generate days if empty and dates exist
   const existingItin = getItineraryModelFromDOM();
   const start = document.getElementById('tripStartDate')?.value;
   const end = document.getElementById('tripEndDate')?.value;
@@ -428,16 +380,14 @@ async function createNewTripAndLoad() {
   if (error) {
     console.error('[GolfTripPlanner] Error creating trip:', error);
     setStatus('Error creating trip – see console.', 'error');
-    alert('Error creating trip. Check console for details.');
-    return;
+    toast('Error creating trip — see console.', 'error', 3500);
+    throw error;
   }
 
   storeCurrentTripId(data.public_id);
   populateUIFromTripRow(data);
-  setStatus('New trip created & loaded.', 'ok');
-
-  dirty = false;
-  setSaveStatus('Saved', false);
+  clearDirty();
+  toast('New trip created', 'success');
 }
 
 async function loadTripFromSupabase(publicId) {
@@ -454,58 +404,71 @@ async function loadTripFromSupabase(publicId) {
   if (error) {
     console.error('[GolfTripPlanner] Error loading trip:', error);
     setStatus('Error loading trip – see console.', 'error');
-    alert('Error loading trip. Check console for details.');
-    return;
+    toast('Error loading trip — see console.', 'error', 3500);
+    throw error;
   }
 
   storeCurrentTripId(data.public_id);
   populateUIFromTripRow(data);
-  setStatus('Trip loaded from Supabase.', 'ok');
-
-  dirty = false;
-  setSaveStatus('Saved', false);
+  clearDirty();
+  toast('Trip loaded', 'success');
 }
 
-async function saveCurrentTrip({ silent = false } = {}) {
+async function saveCurrentTrip(opts = {}) {
+  const silent = !!opts.silent;
+
+  // Prevent overlapping saves (autosave + manual)
+  if (saveInFlight) return saveInFlight;
+
+  // Auto-generate days if empty and dates exist
   const existingItin = getItineraryModelFromDOM();
   const start = document.getElementById('tripStartDate')?.value;
   const end = document.getElementById('tripEndDate')?.value;
-
   if ((!existingItin.days || existingItin.days.length === 0) && start && end) {
     renderItineraryFromModel(generateDaysFromDateRange(start, end));
   }
 
-  const tripData = collectTripDataFromUI();
+  const doSave = async () => {
+    const tripData = collectTripDataFromUI();
 
-  if (!currentTripPublicId) {
-    await createNewTripAndLoad();
-    return;
-  }
+    // If no trip id yet, create
+    if (!currentTripPublicId) {
+      await createNewTripAndLoad();
+      return;
+    }
 
-  if (!silent) setStatus('Saving trip…', 'loading');
+    setStatus(silent ? 'Autosaving…' : 'Saving trip…', 'loading');
 
-  const { error } = await supabaseClient
-    .from('trips')
-    .update({
-      name: tripData.name,
-      location: tripData.location,
-      start_date: tripData.start_date,
-      end_date: tripData.end_date,
-      itinerary_data: tripData.itinerary_data,
-      pairings_data: tripData.pairings_data,
-      expenses_data: tripData.expenses_data,
-      sharing_data: tripData.sharing_data,
-    })
-    .eq('public_id', currentTripPublicId);
+    const { error } = await supabaseClient
+      .from('trips')
+      .update({
+        name: tripData.name,
+        location: tripData.location,
+        start_date: tripData.start_date,
+        end_date: tripData.end_date,
+        itinerary_data: tripData.itinerary_data,
+        pairings_data: tripData.pairings_data,
+        expenses_data: tripData.expenses_data,
+        sharing_data: tripData.sharing_data,
+      })
+      .eq('public_id', currentTripPublicId);
 
-  if (error) {
-    console.error('[GolfTripPlanner] Error saving trip:', error);
-    if (!silent) setStatus('Error saving trip – see console.', 'error');
-    if (!silent) toast('Error loading trip — see console.', 'error', 3500);
-    throw error;
-  }
+    if (error) {
+      console.error('[GolfTripPlanner] Error saving trip:', error);
+      setStatus('Error saving trip – see console.', 'error');
+      if (!silent) toast('Error saving trip — see console.', 'error', 3500);
+      throw error;
+    }
 
-  if (!silent) toast('Trip saved', 'success');
+    clearDirty();
+    if (!silent) toast('Trip saved', 'success');
+  };
+
+  saveInFlight = doSave().finally(() => {
+    saveInFlight = null;
+  });
+
+  return saveInFlight;
 }
 
 // -----------------------------
@@ -531,17 +494,19 @@ function setupTabs() {
 function setupButtons() {
   console.log('[GolfTripPlanner] setupButtons starting…');
 
-  document.getElementById('newTripBtn')?.addEventListener('click', () => {
+  // Core buttons
+  document.getElementById('newTripBtn')?.addEventListener('click', async () => {
     console.log('[GolfTripPlanner] newTripBtn clicked');
-    createNewTripAndLoad();
+    try {
+      await createNewTripAndLoad();
+    } catch {}
   });
 
-  document.getElementById('saveTripBtn')?.addEventListener('click', () => {
+  document.getElementById('saveTripBtn')?.addEventListener('click', async () => {
     console.log('[GolfTripPlanner] saveTripBtn clicked');
-    saveCurrentTrip({ silent: false }).then(() => {
-      dirty = false;
-      setSaveStatus('Saved', false);
-    });
+    try {
+      await saveCurrentTrip({ silent: false });
+    } catch {}
   });
 
   document.getElementById('reloadTripBtn')?.addEventListener('click', async () => {
@@ -550,7 +515,9 @@ function setupButtons() {
       toast('No trip loaded yet. Save or create a trip first.', 'info');
       return;
     }
-    await loadTripFromSupabase(currentTripPublicId);
+    try {
+      await loadTripFromSupabase(currentTripPublicId);
+    } catch {}
   });
 
   document.getElementById('clearLocalBtn')?.addEventListener('click', () => {
@@ -558,13 +525,14 @@ function setupButtons() {
     try { localStorage.removeItem('currentTripPublicId'); } catch {}
     currentTripPublicId = null;
     setStatus('Local trip ID cleared. Create or save a trip.', 'idle');
+    toast('Cleared local trip id', 'info');
   });
 
   document.getElementById('debugBtn')?.addEventListener('click', () => {
     console.log('[GolfTripPlanner] debugBtn clicked');
     console.log('[GolfTripPlanner] currentTripPublicId:', currentTripPublicId);
     console.log('[GolfTripPlanner] UI trip data:', collectTripDataFromUI());
-    alert('Debug info logged to console.');
+    toast('Debug info logged to console', 'info');
   });
 
   // Delegated clicks: Add Day / Add Round
@@ -577,9 +545,10 @@ function setupButtons() {
         console.warn('[GolfTripPlanner] itineraryDaysContainer missing');
         return;
       }
-      container.appendChild(createDayCard({}, { pairingsModel: getPairingsModelFromDOM() }));
-      container.lastElementChild.querySelector('textarea')?.focus();
+      container.appendChild(createDayCard());
+      container.lastElementChild?.querySelector('textarea')?.focus();
       markDirty('itinerary');
+      return;
     }
 
     const addRound = e.target.closest?.('#addRoundBtn');
@@ -590,7 +559,7 @@ function setupButtons() {
         console.warn('[GolfTripPlanner] roundsContainer missing');
         return;
       }
-      roundsContainer.appendChild(createRoundCard({ id: crypto.randomUUID() }, getPlayersFromTextarea(), { getStablefordMode }));
+      roundsContainer.appendChild(createRoundCard({}, getPlayersFromTextarea()));
       markDirty('pairings');
       return;
     }
@@ -604,29 +573,13 @@ function setupButtons() {
   if (addRoundBtn) console.log('[GolfTripPlanner] addRoundBtn rect', addRoundBtn.getBoundingClientRect());
 }
 
-// -----------------------------
-// Dirty tracking
-// -----------------------------
-function setupDirtyTracking() {
-  document.addEventListener('input', (e) => {
-    const inMain = e.target?.closest('main');
-    if (!inMain) return;
-
-    if (e.target?.id === 'itineraryData' || e.target?.id === 'pairingsData') return;
-
-    const src = e.target.closest('#pairingsTab')
-      ? 'pairings'
-      : e.target.closest('#itineraryTab')
-        ? 'itinerary'
-        : e.target.closest('#detailsTab')
-          ? 'details'
-          : e.target.closest('#expensesTab')
-            ? 'expenses'
-            : e.target.closest('#sharingTab')
-              ? 'sharing'
-              : '';
-
-    markDirty(src);
+// Keyboard shortcut: Ctrl/Cmd+S
+function setupKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    const isSave = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's';
+    if (!isSave) return;
+    e.preventDefault();
+    saveCurrentTrip({ silent: false }).catch(() => {});
   });
 }
 
@@ -634,124 +587,32 @@ function setupDirtyTracking() {
 // Init
 // -----------------------------
 async function initGolfTripPlanner() {
-  ensureSaveBadge();
-  setSaveStatus('Saved', false);
-
   setStatus('Initializing Golf Trip Planner…', 'loading');
 
   setupTabs();
   setupButtons();
   setupDirtyTracking();
-  setupStickyActionBars();
-  console.log('[GolfTripPlanner] initGolfTripPlanner finished wiring UI');
-
-  function setupStickyActionBars() {
-  // ---------- Itinerary action bar ----------
-  const itineraryTab = document.getElementById('itineraryTab');
-  if (itineraryTab && !document.getElementById('itineraryActionBar')) {
-    const bar = document.createElement('div');
-    bar.id = 'itineraryActionBar';
-    bar.className = 'action-bar';
-
-    bar.innerHTML = `
-      <div class="left">
-        <div class="title">🗓️ Itinerary</div>
-        <div class="sub">Build the trip flow with blocks + linked rounds.</div>
-      </div>
-      <div class="right">
-        <button type="button" class="secondary small" id="generateDaysBtn">📅 Generate Days</button>
-        <button type="button" class="small" id="addDayBtn">➕ Add Day</button>
-      </div>
-    `;
-
-    // Insert action bar at top of tab
-    itineraryTab.prepend(bar);
-
-    // Remove old "section-bar" (optional) to reduce clutter
-    const oldSectionBar = itineraryTab.querySelector('.section-bar');
-    if (oldSectionBar) oldSectionBar.remove();
-
-    // Hook generate days
-    bar.querySelector('#generateDaysBtn')?.addEventListener('click', () => {
-      const start = document.getElementById('tripStartDate')?.value;
-      const end = document.getElementById('tripEndDate')?.value;
-
-      if (!start || !end) {
-        toast('Set Start + End dates first', 'info');
-        return;
-      }
-
-      const pairingsModel = getPairingsModelFromDOM();
-      renderItineraryFromModel(generateDaysFromDateRange(start, end), { pairingsModel });
-      toast('Generated itinerary days', 'success');
-      markDirty('itinerary');
-    });
-  }
-
-  // ---------- Pairings action bar ----------
-  const pairingsTab = document.getElementById('pairingsTab');
-  if (pairingsTab && !document.getElementById('pairingsActionBar')) {
-    const bar = document.createElement('div');
-    bar.id = 'pairingsActionBar';
-    bar.className = 'action-bar';
-
-    bar.innerHTML = `
-      <div class="left">
-        <div class="title">🏌️ Pairings & Scores</div>
-        <div class="sub">Add rounds, enter scores, toggle Stableford.</div>
-      </div>
-      <div class="right" id="pairingsRightSlot">
-        <button type="button" class="secondary small" id="autoFoursomesAllBtn">👥 Auto Foursomes</button>
-        <button type="button" class="small" id="addRoundBtn">➕ Add Round</button>
-      </div>
-    `;
-
-    pairingsTab.prepend(bar);
-
-    // Remove old "Rounds & Scores" section-bar (optional) to reduce clutter
-    // We keep the Players section as-is.
-    const oldBars = pairingsTab.querySelectorAll('.section-bar');
-    oldBars.forEach((b) => {
-      const title = b.querySelector('.section-title')?.textContent || '';
-      if (title.toLowerCase().includes('round')) b.remove();
-    });
-
-    // Auto-foursomes for every round card
-    bar.querySelector('#autoFoursomesAllBtn')?.addEventListener('click', () => {
-      const cards = Array.from(document.querySelectorAll('#roundsContainer .round-card'));
-      if (!cards.length) {
-        toast('Add a round first', 'info');
-        return;
-      }
-      cards.forEach((c) => {
-        c.querySelector('.auto-foursomes')?.click();
-      });
-      toast('Generated foursomes for all rounds', 'success');
-      markDirty('pairings');
-    });
-  }
-}
-
-  document.addEventListener('keydown', (e) => {
-  const isSave = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's';
-  if (isSave) {
-    e.preventDefault();
-    saveCurrentTrip({ silent: false })
-      .then(() => toast('Saved', 'success'))
-      .catch(() => toast('Save failed — see console', 'error', 3500));
-  }
-});
+  setupKeyboardShortcuts();
 
   // Initial empty UI before Supabase
-  renderItineraryFromModel({ days: [] }, { pairingsModel: { rounds: [] } });
-  ensurePairingsToolbar();
-  renderPairingsFromModel({ players: [], rounds: [] }, { getStablefordMode });
+  renderItineraryFromModel({ days: [] });
+  renderPairingsFromModel({ players: [], rounds: [] });
+
+  // Build sticky bars AFTER the base DOM exists (and after initial render)
+  setupStickyActionBars();
+
+  console.log('[GolfTripPlanner] initGolfTripPlanner finished wiring UI');
 
   await ensureAnonymousSession(setStatus);
 
   loadStoredTripId();
   if (currentTripPublicId) {
-    await loadTripFromSupabase(currentTripPublicId);
+    try {
+      await loadTripFromSupabase(currentTripPublicId);
+    } catch {
+      // keep app usable even if load fails
+      setStatus('Ready (load failed). You can still create/save.', 'error');
+    }
   } else {
     setStatus('Ready. Create a new trip or fill fields and Save.', 'ok');
   }
@@ -762,6 +623,7 @@ function boot() {
   initGolfTripPlanner().catch((err) => {
     console.error('[GolfTripPlanner] init error:', err);
     setStatus('Init error – see console.', 'error');
+    toast('Init error — see console', 'error', 3500);
   });
 }
 
