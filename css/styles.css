@@ -439,3 +439,51 @@ code{
   text-align: center;
   padding: .38rem .45rem;
 }
+
+/* --- Sticky Action Bars (per-tab) --- */
+.action-bar{
+  position: sticky;
+  top: 150px; /* header + tabs; tweak if needed */
+  z-index: 25;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+
+  padding: .55rem .55rem;
+  margin: 0 0 .85rem 0;
+
+  border-radius: 18px;
+  background: rgba(255,255,255,.86);
+  border: 1px solid rgba(148,163,184,.25);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 20px rgba(15,23,42,.08);
+}
+
+.action-bar .left,
+.action-bar .right{
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+  flex-wrap:wrap;
+}
+
+.action-bar .title{
+  font-weight: 800;
+  font-size: 1.02rem;
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+}
+
+.action-bar .sub{
+  font-size: .78rem;
+  color: rgba(100,116,139,.95);
+}
+
+/* tighter on mobile: tabs sit lower */
+@media (max-width: 640px){
+  .action-bar{ top: 182px; }
+}

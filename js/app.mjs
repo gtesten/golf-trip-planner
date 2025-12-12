@@ -143,28 +143,31 @@ function getStablefordMode() {
 function ensurePairingsToolbar() {
   const pairingsTab = document.getElementById('pairingsTab');
   if (!pairingsTab) return;
-  if (document.getElementById('pairingsToolbar')) return;
 
-  const toolbar = document.createElement('div');
-  toolbar.id = 'pairingsToolbar';
-  toolbar.style.display = 'flex';
-  toolbar.style.flexWrap = 'wrap';
-  toolbar.style.gap = '0.5rem';
-  toolbar.style.alignItems = 'center';
-  toolbar.style.margin = '0.25rem 0 0.75rem 0';
+  // Ensure sticky bars exist first
+  setupStickyActionBars();
 
-  toolbar.innerHTML = `
-    <button type="button" class="secondary small" id="stablefordToggleBtn">🏆 Stableford: Off</button>
-    <button type="button" class="secondary small" id="stablefordModeBtn" disabled>Net</button>
-    <span class="hint" style="margin:0;">Stableford uses each round’s ⛳ Setup (Par + SI).</span>
-  `;
+  // Put Stableford controls in the sticky Pairings action bar
+  const rightSlot = document.getElementById('pairingsRightSlot');
+  if (!rightSlot) return;
+  if (document.getElementById('stablefordToggleBtn')) return;
 
-  const stack = pairingsTab.querySelector('.stack');
-  if (stack) stack.prepend(toolbar);
-  else pairingsTab.prepend(toolbar);
+  const toggleBtn = document.createElement('button');
+  toggleBtn.type = 'button';
+  toggleBtn.className = 'secondary small';
+  toggleBtn.id = 'stablefordToggleBtn';
+  toggleBtn.textContent = `🏆 Stableford: ${stablefordState.enabled ? 'On' : 'Off'}`;
 
-  const toggleBtn = toolbar.querySelector('#stablefordToggleBtn');
-  const modeBtn = toolbar.querySelector('#stablefordModeBtn');
+  const modeBtn = document.createElement('button');
+  modeBtn.type = 'button';
+  modeBtn.className = 'secondary small';
+  modeBtn.id = 'stablefordModeBtn';
+  modeBtn.textContent = stablefordState.net ? 'Net' : 'Gross';
+  modeBtn.disabled = !stablefordState.enabled;
+
+  // Insert Stableford buttons BEFORE Auto Foursomes / Add Round for nicer hierarchy
+  rightSlot.prepend(modeBtn);
+  rightSlot.prepend(toggleBtn);
 
   toggleBtn.addEventListener('click', () => {
     stablefordState.enabled = !stablefordState.enabled;
@@ -549,7 +552,95 @@ async function initGolfTripPlanner() {
   setupTabs();
   setupButtons();
   setupDirtyTracking();
+  setupStickyActionBars();
   console.log('[GolfTripPlanner] initGolfTripPlanner finished wiring UI');
+
+  function setupStickyActionBars() {
+  // ---------- Itinerary action bar ----------
+  const itineraryTab = document.getElementById('itineraryTab');
+  if (itineraryTab && !document.getElementById('itineraryActionBar')) {
+    const bar = document.createElement('div');
+    bar.id = 'itineraryActionBar';
+    bar.className = 'action-bar';
+
+    bar.innerHTML = `
+      <div class="left">
+        <div class="title">🗓️ Itinerary</div>
+        <div class="sub">Build the trip flow with blocks + linked rounds.</div>
+      </div>
+      <div class="right">
+        <button type="button" class="secondary small" id="generateDaysBtn">📅 Generate Days</button>
+        <button type="button" class="small" id="addDayBtn">➕ Add Day</button>
+      </div>
+    `;
+
+    // Insert action bar at top of tab
+    itineraryTab.prepend(bar);
+
+    // Remove old "section-bar" (optional) to reduce clutter
+    const oldSectionBar = itineraryTab.querySelector('.section-bar');
+    if (oldSectionBar) oldSectionBar.remove();
+
+    // Hook generate days
+    bar.querySelector('#generateDaysBtn')?.addEventListener('click', () => {
+      const start = document.getElementById('tripStartDate')?.value;
+      const end = document.getElementById('tripEndDate')?.value;
+
+      if (!start || !end) {
+        toast('Set Start + End dates first', 'info');
+        return;
+      }
+
+      const pairingsModel = getPairingsModelFromDOM();
+      renderItineraryFromModel(generateDaysFromDateRange(start, end), { pairingsModel });
+      toast('Generated itinerary days', 'success');
+      markDirty('itinerary');
+    });
+  }
+
+  // ---------- Pairings action bar ----------
+  const pairingsTab = document.getElementById('pairingsTab');
+  if (pairingsTab && !document.getElementById('pairingsActionBar')) {
+    const bar = document.createElement('div');
+    bar.id = 'pairingsActionBar';
+    bar.className = 'action-bar';
+
+    bar.innerHTML = `
+      <div class="left">
+        <div class="title">🏌️ Pairings & Scores</div>
+        <div class="sub">Add rounds, enter scores, toggle Stableford.</div>
+      </div>
+      <div class="right" id="pairingsRightSlot">
+        <button type="button" class="secondary small" id="autoFoursomesAllBtn">👥 Auto Foursomes</button>
+        <button type="button" class="small" id="addRoundBtn">➕ Add Round</button>
+      </div>
+    `;
+
+    pairingsTab.prepend(bar);
+
+    // Remove old "Rounds & Scores" section-bar (optional) to reduce clutter
+    // We keep the Players section as-is.
+    const oldBars = pairingsTab.querySelectorAll('.section-bar');
+    oldBars.forEach((b) => {
+      const title = b.querySelector('.section-title')?.textContent || '';
+      if (title.toLowerCase().includes('round')) b.remove();
+    });
+
+    // Auto-foursomes for every round card
+    bar.querySelector('#autoFoursomesAllBtn')?.addEventListener('click', () => {
+      const cards = Array.from(document.querySelectorAll('#roundsContainer .round-card'));
+      if (!cards.length) {
+        toast('Add a round first', 'info');
+        return;
+      }
+      cards.forEach((c) => {
+        c.querySelector('.auto-foursomes')?.click();
+      });
+      toast('Generated foursomes for all rounds', 'success');
+      markDirty('pairings');
+    });
+  }
+}
 
   document.addEventListener('keydown', (e) => {
   const isSave = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's';
