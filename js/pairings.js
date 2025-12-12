@@ -324,7 +324,11 @@ export function getPairingsModelFromDOM() {
     const rows = Array.from(card.querySelectorAll('tbody tr'));
 
     const playersForRound = rows.map((tr) => {
-      const name = tr.querySelector('.player-name')?.textContent?.trim() || '';
+      const name =
+      tr.querySelector('.player-name-input')?.value?.trim() ||
+      tr.querySelector('.player-name')?.textContent?.trim() ||
+  '';
+
 
       const handicapRaw = tr.querySelector('.handicap-input')?.value;
       const handicap = handicapRaw !== '' && handicapRaw != null ? parseInt(handicapRaw, 10) : null;
@@ -380,11 +384,22 @@ function normalizeRoundPlayers(round, defaultPlayers) {
       .filter((p) => p.name);
   }
 
-  return (defaultPlayers || []).map((name) => ({
+  const names = (defaultPlayers || []).filter(Boolean);
+
+if (names.length) {
+  return names.map((name) => ({
     name,
     handicap: null,
     scores: pad18([]),
   }));
+}
+
+// ✅ If no players were provided, create 4 blank rows so you can enter names + scores
+return Array.from({ length: 4 }, (_, i) => ({
+  name: '',
+  handicap: null,
+  scores: pad18([]),
+}));
 }
 
 function createPlayerScoreRow(player) {
@@ -394,8 +409,16 @@ function createPlayerScoreRow(player) {
   const hdcp = Number.isFinite(player?.handicap) ? player.handicap : '';
 
   tr.innerHTML = `
-    <td><span class="player-name" style="font-weight:700;">${escapeText(player.name || '')}</span></td>
     <td>
+  <input
+    type="text"
+    class="player-name-input"
+    placeholder="Player name"
+    value="${escapeAttr(player.name || '')}"
+    style="font-weight:700; min-width:160px;"
+  >
+</td>
+
       <input type="number" class="handicap-input" min="0" max="54" placeholder="0" value="${hdcp}">
     </td>
     ${scores.slice(0, 9).map((s, i) => holeCell(s, i)).join('')}

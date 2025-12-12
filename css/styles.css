@@ -513,3 +513,24 @@ code{
 /* Round cards: reduce visual bulk */
 .round-card .hint{ margin-top: .25rem; }
 .round-card table{ margin-top: .4rem; }
+/* --- Pairings: 2-column layout on desktop --- */
+@media (min-width: 980px){
+  #pairingsTab .stack{
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  /* Left column (Players) stays visible */
+  #pairingsTab .stack > div:first-child{
+    position: sticky;
+    top: 150px; /* header + tabs + action bar */
+    align-self: start;
+  }
+}
+
+/* Make the players textarea feel deliberate */
+#playersInput{
+  min-height: 220px;
+}
