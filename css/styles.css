@@ -567,43 +567,50 @@ code{
   width: 42px;
   text-align: center;
 }
-/* --- Sticky left columns (Player + Hdcp) inside score tables --- */
+/* --- Sticky left columns (aligned) --- */
 .round-card .table-scroll{
-  position: relative; /* needed for sticky layering */
+  position: relative;
 }
 
-/* 1st column: Player */
+.round-card .table-scroll thead th{
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+:root{
+  --col-player: 170px;
+  --col-hdcp: 72px;
+}
+
 .round-card .table-scroll th:nth-child(1),
 .round-card .table-scroll td:nth-child(1){
+  min-width: var(--col-player);
+  width: var(--col-player);
   position: sticky;
   left: 0;
-  z-index: 3;
+  z-index: 5;
   background: rgba(255,255,255,.98);
 }
 
-/* 2nd column: Hdcp */
 .round-card .table-scroll th:nth-child(2),
 .round-card .table-scroll td:nth-child(2){
+  min-width: var(--col-hdcp);
+  width: var(--col-hdcp);
   position: sticky;
-  left: 170px; /* width of Player column */
-  z-index: 3;
+  left: var(--col-player);
+  z-index: 5;
   background: rgba(255,255,255,.98);
+  box-shadow: 8px 0 0 rgba(148,163,184,.14);
 }
 
-/* Make Player column consistently wide */
-.round-card .table-scroll th:nth-child(1),
-.round-card .table-scroll td:nth-child(1){
-  min-width: 170px;
+/* keep inputs from expanding the sticky columns */
+.round-card .player-name-input{
+  width: calc(var(--col-player) - 18px);
+  max-width: calc(var(--col-player) - 18px);
 }
-
-/* Make Hdcp column consistently narrow */
-.round-card .table-scroll th:nth-child(2),
-.round-card .table-scroll td:nth-child(2){
-  min-width: 70px;
-}
-
-/* Optional: subtle divider so it feels anchored */
-.round-card .table-scroll th:nth-child(2),
-.round-card .table-scroll td:nth-child(2){
-  box-shadow: 6px 0 0 rgba(148,163,184,.18);
+.round-card .handicap-input{
+  width: calc(var(--col-hdcp) - 18px);
+  max-width: calc(var(--col-hdcp) - 18px);
+  text-align: center;
 }
