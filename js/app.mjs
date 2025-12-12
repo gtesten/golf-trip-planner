@@ -27,6 +27,7 @@ window.addEventListener('error', (e) => {
 window.addEventListener('unhandledrejection', (e) => {
   console.error('[GolfTripPlanner] unhandledrejection:', e.reason);
 });
+console.log('[GolfTripPlanner] readyState on load:', document.readyState);
 
 
 
@@ -395,27 +396,23 @@ async function initGolfTripPlanner() {
   }
 }
 
-document.addEventListener('click', (e) => {
-  const addRound = e.target.closest?.('#addRoundBtn');
-  if (addRound) {
+function boot() {
+  console.log('[GolfTripPlanner] boot() starting');
+  initGolfTripPlanner().catch((err) => {
+    console.error('[GolfTripPlanner] init error:', err);
+    setStatus('Init error – see console.', 'error');
+  });
+}
 
-    const players = getPlayersFromTextarea();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('[GolfTripPlanner] DOMContentLoaded fired');
+    boot();
+  });
+} else {
+  // DOM already loaded
+  console.log('[GolfTripPlanner] DOM already ready:', document.readyState);
+  boot();
+}
 
-    // 🚫 Guard: must have players before adding a round
-    if (!players || players.length === 0) {
-      alert('Please add players before creating a round.');
-      return;
-    }
-
-    const roundsContainer = document.getElementById('roundsContainer');
-    if (!roundsContainer) return;
-
-    const card = createRoundCard({}, players);
-    roundsContainer.appendChild(card);
-
-    // 🎯 Nice UX: focus first score input
-    card.querySelector('input.score-input')?.focus();
-    return;
-  }
-});
 
