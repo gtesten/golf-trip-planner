@@ -68,6 +68,17 @@
       color: #111827;
     }
 
+    button.small {
+      padding: 0.2rem 0.5rem;
+      font-size: 0.75rem;
+      border-radius: 999px;
+    }
+
+    button.danger {
+      background: #dc2626;
+      color: white;
+    }
+
     button:disabled {
       opacity: 0.6;
       cursor: not-allowed;
@@ -150,6 +161,8 @@
 
     input[type="text"],
     input[type="date"],
+    input[type="time"],
+    input[type="number"],
     textarea {
       width: 100%;
       border-radius: 0.5rem;
@@ -161,7 +174,7 @@
     }
 
     textarea {
-      min-height: 160px;
+      min-height: 120px;
       resize: vertical;
     }
 
@@ -176,6 +189,84 @@
       font-size: 0.75rem;
       color: #9ca3af;
       text-align: right;
+    }
+
+    /* Cards for Itinerary + Rounds */
+
+    .day-card,
+    .round-card {
+      border-radius: 0.75rem;
+      border: 1px solid #e5e7eb;
+      padding: 0.75rem 0.9rem;
+      margin-bottom: 0.75rem;
+      background: #f9fafb;
+    }
+
+    .day-header,
+    .round-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .day-header input[type="date"],
+    .round-header input[type="date"],
+    .round-header input[type="time"] {
+      max-width: 160px;
+    }
+
+    .day-header input[type="text"],
+    .round-header input[type="text"] {
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .pill-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6b7280;
+      margin-bottom: 0.2rem;
+    }
+
+    .section-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.4rem;
+    }
+
+    .section-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+
+    th,
+    td {
+      border: 1px solid #e5e7eb;
+      padding: 0.35rem 0.35rem;
+      text-align: left;
+    }
+
+    th {
+      background: #f3f4f6;
+      font-weight: 600;
     }
 
     @media (max-width: 640px) {
@@ -252,32 +343,94 @@
         </p>
       </div>
 
-      <!-- Itinerary -->
+      <!-- Itinerary (structured by day) -->
       <div class="tab-panel" id="itineraryTab">
-        <label for="itineraryData">Itinerary Data</label>
-        <textarea id="itineraryData" placeholder='Round-by-round plan, or JSON if you prefer.'></textarea>
-        <div class="hint">Stored in <code>trips.itinerary_data</code>.</div>
+        <div class="section-bar">
+          <div class="section-title">Daily Itinerary</div>
+          <button id="addDayBtn" class="small">➕ Add Day</button>
+        </div>
+        <p class="hint">
+          Each day can have a date, a label (e.g., "Arrival + Warm-up"), morning plan, afternoon/evening plan, and notes.
+        </p>
+
+        <div id="itineraryDaysContainer"></div>
+
+        <!-- Hidden storage for JSON, used when saving/loading -->
+        <textarea id="itineraryData" style="display:none;"></textarea>
       </div>
 
-      <!-- Pairings & Scores -->
+      <!-- Pairings & Scores (structured) -->
       <div class="tab-panel" id="pairingsTab">
-        <label for="pairingsData">Pairings &amp; Scores</label>
-        <textarea id="pairingsData" placeholder='Pairings and scores (free text or JSON).'></textarea>
-        <div class="hint">Stored in <code>trips.pairings_data</code>.</div>
+        <div class="stack">
+          <div>
+            <div class="section-bar">
+              <div class="section-title">Players</div>
+            </div>
+            <label for="playersInput">Players (one per line)</label>
+            <textarea
+              id="playersInput"
+              placeholder="Glenn
+Mike
+Dave
+Chris"
+            ></textarea>
+            <div class="hint">
+              This list is used to auto-fill score rows for each round.
+            </div>
+          </div>
+
+          <div>
+            <div class="section-bar">
+              <div class="section-title">Rounds &amp; Scores</div>
+              <button id="addRoundBtn" class="small">➕ Add Round</button>
+            </div>
+            <div id="roundsContainer"></div>
+          </div>
+        </div>
+
+        <!-- Hidden storage for JSON, used when saving/loading -->
+        <textarea id="pairingsData" style="display:none;"></textarea>
       </div>
 
       <!-- Expenses & Docs -->
       <div class="tab-panel" id="expensesTab">
         <label for="expensesData">Expenses &amp; Docs</label>
-        <textarea id="expensesData" placeholder='Budget, receipts, confirmation numbers, links, etc.'></textarea>
-        <div class="hint">Stored in <code>trips.expenses_data</code>.</div>
+        <textarea
+          id="expensesData"
+          placeholder='Example:
+{
+  "budget": {
+    "lodging": 2600,
+    "golf": 1400,
+    "meals": 800,
+    "travel": 1200
+  },
+  "docs": [
+    {"label": "Res #12345 – Forest Dunes", "url": "https://..."},
+    {"label": "Res #67890 – The Loop", "url": "https://..."}
+  ]
+}'
+        ></textarea>
+        <div class="hint">
+          Store budget numbers, receipts, and doc links here. Stored in <code>trips.expenses_data</code>.
+        </div>
       </div>
 
       <!-- Sharing -->
       <div class="tab-panel" id="sharingTab">
-        <label for="sharingData">Sharing Notes</label>
-        <textarea id="sharingData" placeholder='What you send to the group, share links, Venmo notes, etc.'></textarea>
-        <div class="hint">Stored in <code>trips.sharing_data</code>.</div>
+        <label for="sharingData">Sharing Settings / Notes</label>
+        <textarea
+          id="sharingData"
+          placeholder='Example:
+{
+  "organizer_email": "you@example.com",
+  "share_link": "https://gtesten.github.io/golf-trip-planner/?trip=...",
+  "notes": "Venmo @GlennTesten for lodging by 7/15. Final pairings will be posted the week before."
+}'
+        ></textarea>
+        <div class="hint">
+          Any info you use when sending this trip to the group goes here. Stored in <code>trips.sharing_data</code>.
+        </div>
       </div>
     </section>
 
