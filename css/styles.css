@@ -252,6 +252,52 @@ textarea{ resize: vertical; }
   box-shadow: 8px 0 0 rgba(148,163,184,.12);
 }
 
+/* =========================================================
+   FIX: lock actual column widths so sticky offsets match
+   (No <colgroup> required)
+   ========================================================= */
+
+/* Force Player + Hdcp columns to the same width as your CSS vars */
+.round-card .score-table th:nth-child(1),
+.round-card .score-table td:nth-child(1){
+  min-width: var(--col-player);
+  width: var(--col-player);
+  max-width: var(--col-player);
+  z-index: 8; /* above everything */
+}
+
+.round-card .score-table th:nth-child(2),
+.round-card .score-table td:nth-child(2){
+  min-width: var(--col-hdcp);
+  width: var(--col-hdcp);
+  max-width: var(--col-hdcp);
+  z-index: 7;
+}
+
+/* Make all "hole" columns a consistent width so inputs don't look like they drift */
+.round-card .score-table th:nth-child(n+3),
+.round-card .score-table td:nth-child(n+3){
+  min-width: var(--col-hole);
+  width: var(--col-hole);
+}
+
+/* Totals at the end are wider (Out/In/Gross/Net) */
+.round-card .score-table th:nth-last-child(-n+4),
+.round-card .score-table td:nth-last-child(-n+4){
+  min-width: var(--col-total);
+  width: var(--col-total);
+}
+
+/* Center the inputs reliably inside each cell */
+.round-card .score-table td{
+  vertical-align: middle;
+}
+.round-card td input,
+.round-card td input.score-input{
+  display: block;
+  margin: 0 auto;
+}
+
 /* Force solid backgrounds for sticky columns (prevents bleed-through) */
 .round-card .score-table thead th:nth-child(1),
 .round-card .score-table thead th:nth-child(2){

@@ -494,35 +494,6 @@ function setupTabs() {
 function setupButtons() {
   console.log('[GolfTripPlanner] setupButtons starting…');
 
-  // Core buttons
-  document.addEventListener('click', (e) => {
-  const el = (e.target instanceof Element) ? e.target : e.target?.parentElement;
-  if (!el) return;
-
-  const addDay = el.closest('#addDayBtn');
-  if (addDay) {
-    console.log('[GolfTripPlanner] Add Day clicked');
-    const container = document.getElementById('itineraryDaysContainer');
-    if (!container) return;
-    container.appendChild(createDayCard());
-    container.lastElementChild?.querySelector('textarea')?.focus();
-    markDirty('itinerary');
-    return;
-  }
-
-  const addRound = el.closest('#addRoundBtn');
-  if (addRound) {
-    console.log('[GolfTripPlanner] Add Round clicked');
-    const roundsContainer = document.getElementById('roundsContainer');
-    if (!roundsContainer) return;
-    const card = createRoundCard({}, getPlayersFromTextarea());
-    roundsContainer.appendChild(card);
-    card.querySelector('.round-course')?.focus?.();
-    markDirty('pairings');
-    return;
-  }
-});
-
   document.getElementById('saveTripBtn')?.addEventListener('click', async () => {
     console.log('[GolfTripPlanner] saveTripBtn clicked');
     try {
@@ -580,7 +551,10 @@ function setupButtons() {
         console.warn('[GolfTripPlanner] roundsContainer missing');
         return;
       }
-      roundsContainer.appendChild(createRoundCard({}, getPlayersFromTextarea()));
+
+      const card = createRoundCard({}, getPlayersFromTextarea());
+      roundsContainer.appendChild(card);
+      card.querySelector('.round-course')?.focus?.();
       markDirty('pairings');
       return;
     }
@@ -617,7 +591,21 @@ async function initGolfTripPlanner() {
 
   // Initial empty UI before Supabase
   renderItineraryFromModel({ days: [] });
-  renderPairingsFromModel({ players: [], rounds: [] });
+  // Initial empty UI before Supabase
+  renderItineraryFromModel({ days: [] });
+
+  // Pairings: seed players from textarea so the first/default table shows everyone
+  const seedPairings = getPairingsModelFromDOM?.() || { players: [], rounds: [] };
+  seedPairings.players = getPlayersFromTextarea();
+  renderPairingsFromModel(seedPairings);
+
+  // When players list changes, re-render pairings so rows stay aligned
+  document.getElementById('playersInput')?.addEventListener('input', () => {
+  const m = getPairingsModelFromDOM() || { players: [], rounds: [] };
+  m.players = getPlayersFromTextarea();
+  renderPairingsFromModel(m);
+  markDirty('pairings');
+  });
 
   // Build sticky bars AFTER the base DOM exists (and after initial render)
   setupStickyActionBars();
