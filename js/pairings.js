@@ -108,23 +108,28 @@ export function createRoundCard(round = {}, playersList = []) {
   card.appendChild(toggle);
 
   // Table
-  const scroll = document.createElement('div');
-  scroll.className = 'table-scroll';
+const scroll = document.createElement('div');
+scroll.className = 'table-scroll';
 
-  const table = document.createElement('table');
-  table.className = 'score-table';
+const table = document.createElement('table');
+table.className = 'score-table';
 
- const pars = getParsFromCard(card);
-  const si = getStrokeIndexFromCard(card);
+const pars = getParsFromCard(card);
+const si = getStrokeIndexFromCard(card);
 
-  table.appendChild(buildScoreTableHead());
-  table.appendChild(buildScoreTableBody(round, players, pars, si));
+table.appendChild(buildScoreTableHead());
+table.appendChild(buildScoreTableBody(round, players, pars, si));
 
-  renderGroupsUI(card, groupsWrap);
+// ✅ ACTUALLY MOUNT THE TABLE
+scroll.appendChild(table);
+card.appendChild(scroll);
 
-  // Default view: All (as requested)
-  setHolesView(card, 'all');
-  setToggleActive(toggle, 'all');
+// Groups display (keep this after card exists; table can be before/after)
+renderGroupsUI(card, groupsWrap);
+
+// Default view: All (run after table is in the DOM)
+setHolesView(card, 'all');
+setToggleActive(toggle, 'all');
 
   // Toggle wiring
   toggle.addEventListener('click', (e) => {
