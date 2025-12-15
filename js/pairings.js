@@ -299,31 +299,62 @@ function normalizeRound(round, players) {
 
 function buildScoreTableHead() {
   const thead = document.createElement('thead');
-  const tr = document.createElement('tr');
 
-  const thPlayer = document.createElement('th');
-  thPlayer.textContent = 'Player';
-  tr.appendChild(thPlayer);
+  /* ---------- GROUP LABEL ROW ---------- */
+  const trGroup = document.createElement('tr');
 
-  const thHdcp = document.createElement('th');
-  thHdcp.textContent = 'Hdcp';
-  tr.appendChild(thHdcp);
+  // Player
+  const thPlayerGroup = document.createElement('th');
+  thPlayerGroup.rowSpan = 2;
+  thPlayerGroup.textContent = 'Player';
+  trGroup.appendChild(thPlayerGroup);
+
+  // Hdcp
+  const thHdcpGroup = document.createElement('th');
+  thHdcpGroup.rowSpan = 2;
+  thHdcpGroup.textContent = 'Hdcp';
+  trGroup.appendChild(thHdcpGroup);
+
+  // Front 9 group
+  const thFront = document.createElement('th');
+  thFront.colSpan = 9;
+  thFront.textContent = 'Front 9';
+  thFront.className = 'nine-group front-nine';
+  trGroup.appendChild(thFront);
+
+  // Back 9 group
+  const thBack = document.createElement('th');
+  thBack.colSpan = 9;
+  thBack.textContent = 'Back 9';
+  thBack.className = 'nine-group back-nine';
+  trGroup.appendChild(thBack);
+
+  // Totals group
+  const thTotals = document.createElement('th');
+  thTotals.colSpan = 4;
+  thTotals.textContent = 'Totals';
+  thTotals.className = 'nine-group totals-group';
+  trGroup.appendChild(thTotals);
+
+  thead.appendChild(trGroup);
+
+  /* ---------- HOLE NUMBER ROW ---------- */
+  const trHoles = document.createElement('tr');
 
   for (let i = 1; i <= 18; i += 1) {
     const th = document.createElement('th');
     th.textContent = String(i);
-    th.dataset.hole = String(i); // for Front/Back toggle
-    tr.appendChild(th);
+    th.dataset.hole = String(i);
+    trHoles.appendChild(th);
   }
 
-  // Totals
   ['Out', 'In', 'Gross', 'Net'].forEach((label) => {
     const th = document.createElement('th');
     th.textContent = label;
-    tr.appendChild(th);
+    trHoles.appendChild(th);
   });
 
-  thead.appendChild(tr);
+  thead.appendChild(trHoles);
   return thead;
 }
 
