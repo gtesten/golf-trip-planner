@@ -438,3 +438,54 @@ footer{
 .round-card .table-scroll td:nth-last-child(-n+4){
   background: rgba(255,255,255,.985);
 }
+/* ===========================
+   SCORE GRID: FIT ON DESKTOP
+   =========================== */
+
+/* tighter columns so 18 holes fit without scrolling on typical desktop widths */
+:root{
+  --col-player: 140px;
+  --col-hdcp: 56px;
+  --col-hole: 30px;
+  --col-outin: 44px;
+  --col-total: 56px;
+}
+
+/* Desktop: remove horizontal scroll, let table fit inside */
+@media (min-width: 1100px){
+  .round-card .table-scroll{
+    overflow-x: visible !important;
+  }
+  .round-card .score-table{
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+/* Small screens: keep safe scroll */
+@media (max-width: 1099px){
+  .round-card .table-scroll{
+    overflow-x: auto !important;
+  }
+}
+
+/* Tighter cells */
+.round-card .score-table th,
+.round-card .score-table td{
+  padding: .32rem .35rem;
+  font-size: .82rem;
+}
+
+/* Compact score inputs */
+.round-card td input.score-input{
+  width: 28px;
+  max-width: 28px;
+  padding: .25rem .2rem;
+  text-align: center;
+}
+
+/* Compact handicap */
+.round-card .handicap-input{
+  max-width: 48px;
+  text-align:center;
+}
