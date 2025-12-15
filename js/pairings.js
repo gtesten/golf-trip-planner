@@ -2,20 +2,50 @@
 'use strict';
 
 /**
- * Players textarea -> array of player names
+ * Exports used by app.mjs:
+ *  - renderPairingsFromModel(model)
+ *  - getPairingsModelFromDOM()
+ *  - createRoundCard(round, players)
+ *  - getPlayersFromTextarea()
  */
+
+// -----------------------------
+// Utilities
+// -----------------------------
+function toNumber(v) {
+  if (v === null || v === undefined) return 0;
+  const n = Number(String(v).trim());
+  return Number.isFinite(n) ? n : 0;
+}
+
+function clamp18(arr) {
+  const a = Array.isArray(arr) ? arr.slice(0, 18) : [];
+  while (a.length < 18) a.push('');
+  return a;
+}
+
+function defaultPars() {
+  // blank by default; you can set common default (4s) if you want
+  return Array(18).fill('');
+}
+
+function defaultStrokeIndex() {
+  // blank by default; can be filled later
+  return Array(18).fill('');
+}
+
 export function getPlayersFromTextarea() {
-  const ta = document.getElementById('playersInput');
-  if (!ta) return [];
-  return ta.value
+  const playersArea = document.getElementById('playersInput');
+  const raw = playersArea?.value || '';
+  return raw
     .split('\n')
     .map((s) => s.trim())
     .filter(Boolean);
 }
 
-/**
- * Render Pairings tab from model
- */
+// -----------------------------
+// Public: Render + Serialize
+// -----------------------------
 export function renderPairingsFromModel(model) {
   const playersArea = document.getElementById('playersInput');
   const roundsContainer = document.getElementById('roundsContainer');
@@ -25,66 +55,112 @@ export function renderPairingsFromModel(model) {
     return;
   }
 
-  const incoming = model && typeof model === 'object' ? model : {};
-  incoming.rounds = Array.isArray(incoming.rounds) ? incoming.rounds : [];
-  incoming.players = Array.isArray(incoming.players) ? incoming.players : [];
-
-  // Textarea is source-of-truth if it has content.
-  // If textarea empty but model has players, populate textarea.
-  const textareaPlayers = getPlayersFromTextarea();
-  let playersList = textareaPlayers;
-
-  if (playersList.length === 0 && incoming.players.length > 0) {
-    playersArea.value = incoming.players.join('\n');
-    playersList = incoming.players.slice();
-  }
-
-  // If players exist but no rounds, create one empty round so the scorecard appears
-  if (playersList.length > 0 && incoming.rounds.length === 0) {
-    incoming.rounds = [createEmptyRound(playersList)];
-  }
+  const players = Array.isArray(model?.players) ? model.players : [];
+  playersArea.value = players.join('\n');
 
   roundsContainer.innerHTML = '';
-  incoming.rounds.forEach((r) => {
-    const normalized = normalizeRound(r, playersList);
-    const card = createRoundCard(normalized, playersList);
-    roundsContainer.appendChild(card);
+
+  const rounds = Array.isArray(model?.rounds) ? model.rounds : [];
+
+  // If no rounds saved yet, create a single empty round so UI isn't blank
+  if (rounds.length === 0) {
+    roundsContainer.appendChild(createRoundCard({}, getPlayersFromTextarea()));
+    return;
+  }
+
+  rounds.forEach((r) => {
+    roundsContainer.appendChild(createRoundCard(r, players));
   });
 }
 
-/**
- * Build a round card DOM from round model + players
- */
-export function createRoundCard(round = {}, playersList = []) {
-  const r = round && typeof round === 'object' ? round : {};
-  const players = Array.isArray(playersList) ? playersList : [];
+export function getPairingsModelFromDOM() {
+  const players = getPlayersFromTextarea();
+  const roundsContainer = document.getElementById('roundsContainer');
+  const cards = Array.from(roundsContainer?.querySelectorAll('.round-card') || []);
 
+  const rounds = cards.map((card) => {
+    const round = {
+      course: card.querySelector('.round-course')?.value?.trim() || '',
+      date: card.querySelector('.round-date')?.value || '',
+      // persisted hole meta
+      pars: safeParseJSON(card.dataset.pars, defaultPars()),
+      strokeIndex: safeParseJSON(card.dataset.strokeIndex, defaultStrokeIndex()),
+      // groups
+      groups: safeParseJSON(card.dataset.groups, []),
+      // scores
+      scores: []
+    };
+
+    const table = card.querySelector('table.score-table');
+    if (!table) return round;
+
+    // ensure latest Par/SI are persisted
+    persistHoleMetaFromTableToCard(card, table);
+
+    // each player row is tbody tr[data-player]
+    const playerRows = Array.from(table.querySelectorAll('tbody tr[data-player]'));
+    playerRows.forEach((tr) => {
+      const player = tr.getAttribute('data-player') || '';
+      const hdcp = toNumber(tr.querySelector('input.handicap-input')?.value);
+      const holes = [];
+
+      const holeCells = Array.from(tr.querySelectorAll('td[data-hole]'));
+      holeCells.forEach((td) => {
+        const inp = td.querySelector('input.score-input');
+        holes.push(inp?.value ?? '');
+      });
+
+      round.scores.push({
+        player,
+        hdcp,
+        holes: clamp18(holes)
+      });
+    });
+
+    // refresh groups from players list if needed
+    if (!Array.isArray(round.groups) || round.groups.length === 0) {
+      round.groups = makeFoursomes(players);
+    }
+
+    // re-save groups to card dataset
+    card.dataset.groups = JSON.stringify(round.groups);
+
+    return round;
+  });
+
+  return { players, rounds };
+}
+
+// -----------------------------
+// DOM Builders
+// -----------------------------
+export function createRoundCard(round = {}, players = []) {
   const card = document.createElement('div');
   card.className = 'round-card';
 
-  // Persist groups + hole meta in dataset for serialization
-  card.dataset.groups = JSON.stringify(Array.isArray(r.groups) ? r.groups : []);
-  card.dataset.pars = JSON.stringify(Array.isArray(r.pars) ? r.pars : defaultPars());
-  card.dataset.strokeIndex = JSON.stringify(Array.isArray(r.strokeIndex) ? r.strokeIndex : defaultStrokeIndex());
+  // Persisted meta
+  card.dataset.pars = JSON.stringify(
+    Array.isArray(round?.pars) && round.pars.length === 18 ? round.pars : defaultPars()
+  );
+  card.dataset.strokeIndex = JSON.stringify(
+    Array.isArray(round?.strokeIndex) && round.strokeIndex.length === 18 ? round.strokeIndex : defaultStrokeIndex()
+  );
+
+  const groups = Array.isArray(round?.groups) && round.groups.length ? round.groups : makeFoursomes(players);
+  card.dataset.groups = JSON.stringify(groups);
 
   // Header
   const header = document.createElement('div');
   header.className = 'round-header';
   header.innerHTML = `
-    <div style="flex:1; min-width:220px;">
-      <label style="display:block; font-size:.8rem; color: var(--muted); font-weight:700; margin-bottom:.35rem;">Course</label>
-      <input class="round-course" type="text" placeholder="Course name" value="${escapeAttr(r.course || '')}">
+    <div style="display:flex; gap:.6rem; flex-wrap:wrap; align-items:center;">
+      <input class="round-course" type="text" placeholder="Course (optional)" value="${escapeAttr(round?.course || '')}" style="max-width: 320px;">
+      <input class="round-date" type="date" value="${escapeAttr(round?.date || '')}" style="max-width: 180px;">
     </div>
-
-    <div style="width:180px; min-width:160px;">
-      <label style="display:block; font-size:.8rem; color: var(--muted); font-weight:700; margin-bottom:.35rem;">Date</label>
-      <input class="round-date" type="date" value="${escapeAttr(r.date || '')}">
-    </div>
-
-    <div style="display:flex; gap:.5rem; align-items:flex-end; flex-wrap:wrap;">
+    <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; margin-left:auto;">
       <button type="button" class="secondary small auto-foursomes">👥 Auto Foursomes</button>
-      <button type="button" class="secondary small clear-scores">↺ Clear Scores</button>
-      <button type="button" class="small remove-round" style="background:#ef4444;">Remove</button>
+      <button type="button" class="secondary small clear-scores">🧹 Clear Scores</button>
+      <button type="button" class="secondary small remove-round">🗑️ Remove</button>
     </div>
   `;
   card.appendChild(header);
@@ -108,28 +184,27 @@ export function createRoundCard(round = {}, playersList = []) {
   card.appendChild(toggle);
 
   // Table
-const scroll = document.createElement('div');
-scroll.className = 'table-scroll';
+  const scroll = document.createElement('div');
+  scroll.className = 'table-scroll';
 
-const table = document.createElement('table');
-table.className = 'score-table';
+  const table = document.createElement('table');
+  table.className = 'score-table';
 
-const pars = getParsFromCard(card);
-const si = getStrokeIndexFromCard(card);
+  const pars = getParsFromCard(card);
+  const si = getStrokeIndexFromCard(card);
 
-table.appendChild(buildScoreTableHead());
-table.appendChild(buildScoreTableBody(round, players, pars, si));
+  table.appendChild(buildScoreTableHead());
+  table.appendChild(buildScoreTableBody(round, players, pars, si));
 
-// ✅ ACTUALLY MOUNT THE TABLE
-scroll.appendChild(table);
-card.appendChild(scroll);
+  // ✅ ACTUALLY MOUNT TABLE (this was missing before)
+  scroll.appendChild(table);
+  card.appendChild(scroll);
 
-// Groups display (keep this after card exists; table can be before/after)
-renderGroupsUI(card, groupsWrap);
+  renderGroupsUI(card, groupsWrap);
 
-// Default view: All (run after table is in the DOM)
-setHolesView(card, 'all');
-setToggleActive(toggle, 'all');
+  // Default view
+  setHolesView(card, 'all');
+  setToggleActive(toggle, 'all');
 
   // Toggle wiring
   toggle.addEventListener('click', (e) => {
@@ -144,8 +219,9 @@ setToggleActive(toggle, 'all');
   header.querySelector('.remove-round')?.addEventListener('click', () => card.remove());
 
   header.querySelector('.auto-foursomes')?.addEventListener('click', () => {
-    const groups = makeFoursomes(players);
-    card.dataset.groups = JSON.stringify(groups);
+    const currentPlayers = getPlayersFromTextarea();
+    const newGroups = makeFoursomes(currentPlayers);
+    card.dataset.groups = JSON.stringify(newGroups);
     renderGroupsUI(card, groupsWrap);
   });
 
@@ -159,247 +235,44 @@ setToggleActive(toggle, 'all');
     const t = e.target;
     if (!(t instanceof HTMLInputElement)) return;
 
-    // Par / SI changes should recolor all rows
+    // Persist Par/SI to dataset
     if (t.classList.contains('par-input') || t.classList.contains('si-input')) {
-      // Persist to card dataset so it saves
       persistHoleMetaFromTableToCard(card, table);
-      recomputeAllTotalsAndColors(table);
-      return;
     }
 
-    if (t.classList.contains('score-input') || t.classList.contains('handicap-input')) {
-      const tr = t.closest('tr');
-      if (tr) recomputeRowTotalsAndColors(tr, table);
+    // recompute totals whenever scores or handicap changes
+    if (
+      t.classList.contains('score-input') ||
+      t.classList.contains('handicap-input') ||
+      t.classList.contains('par-input') ||
+      t.classList.contains('si-input')
+    ) {
+      recomputeAllTotalsAndColors(table);
     }
   });
 
-  // Compute totals + colors initially
+  // Initial totals on load
   recomputeAllTotalsAndColors(table);
 
   return card;
 }
 
-/**
- * DOM -> Model
- */
-export function getPairingsModelFromDOM() {
-  const players = getPlayersFromTextarea();
-  const roundsContainer = document.getElementById('roundsContainer');
-
-  const rounds = [];
-  const cards = Array.from(roundsContainer?.querySelectorAll('.round-card') || []);
-
-  cards.forEach((card) => {
-    const course = card.querySelector('.round-course')?.value?.trim?.() || '';
-    const date = card.querySelector('.round-date')?.value || '';
-
-    let groups = [];
-    try {
-      groups = JSON.parse(card.dataset.groups || '[]');
-      if (!Array.isArray(groups)) groups = [];
-    } catch {
-      groups = [];
-    }
-
-    let pars = defaultPars();
-    try {
-      const p = JSON.parse(card.dataset.pars || '[]');
-      if (Array.isArray(p) && p.length === 18) pars = p;
-    } catch {}
-
-    let strokeIndex = defaultStrokeIndex();
-    try {
-      const si = JSON.parse(card.dataset.strokeIndex || '[]');
-      if (Array.isArray(si) && si.length === 18) strokeIndex = si;
-    } catch {}
-
-    const table = card.querySelector('table.score-table');
-    const scoreRows = [];
-
-    if (table) {
-      const trs = Array.from(table.querySelectorAll('tbody tr'));
-      trs.forEach((tr) => {
-        const player = tr.getAttribute('data-player') || '';
-        const hdcpVal = tr.querySelector('input.handicap-input')?.value ?? '0';
-        const hdcp = toNumber(hdcpVal);
-
-        const holes = [];
-        const holeInputs = Array.from(tr.querySelectorAll('input.score-input'));
-        holeInputs.forEach((inp) => holes.push(inp.value ?? ''));
-
-        const fixedHoles = Array.from({ length: 18 }, (_, i) => holes[i] ?? '');
-        scoreRows.push({ player, hdcp, holes: fixedHoles });
-      });
-    }
-
-    const normalized = normalizeRound(
-      { course, date, groups, pars, strokeIndex, scores: scoreRows },
-      players
-    );
-    rounds.push(normalized);
-  });
-
-  return { players, rounds };
-}
-
-/* ---------------------------
-   Helpers
---------------------------- */
-
-function setToggleActive(toggleEl, view) {
-  toggleEl.querySelectorAll('button').forEach((b) => b.classList.remove('is-active'));
-  toggleEl.querySelector(`button[data-view="${view}"]`)?.classList.add('is-active');
-}
-
-/**
- * Collapse/label the group header based on view without breaking table layout.
- * (We keep cells, but dim and adjust text so it looks intentional.)
- */
-function updateGroupHeaderLabels(card, view) {
-  const thFront = card.querySelector('th.front-nine');
-  const thBack = card.querySelector('th.back-nine');
-
-  if (!thFront || !thBack) return;
-
-  if (view === 'front') {
-    thFront.style.opacity = '1';
-    thFront.textContent = 'Front 9';
-    thBack.style.opacity = '.25';
-    thBack.textContent = 'Back 9';
-  } else if (view === 'back') {
-    thFront.style.opacity = '.25';
-    thFront.textContent = 'Front 9';
-    thBack.style.opacity = '1';
-    thBack.textContent = 'Back 9';
-  } else {
-    thFront.style.opacity = '1';
-    thFront.textContent = 'Front 9';
-    thBack.style.opacity = '1';
-    thBack.textContent = 'Back 9';
-  }
-}
-
-function buildMetaRow(label, values, inputClass) {
-  const tr = document.createElement('tr');
-  tr.className = 'meta-row';
-  tr.dataset.meta = label.toLowerCase();
-
-  const tdLabel = document.createElement('td');
-  tdLabel.className = 'meta-label';
-  tdLabel.textContent = label;
-  tr.appendChild(tdLabel);
-
-  const tdBlank = document.createElement('td');
-  tdBlank.textContent = '';
-  tr.appendChild(tdBlank);
-
-  for (let i = 1; i <= 18; i += 1) {
-    const td = document.createElement('td');
-    td.dataset.hole = String(i);
-
-    const inp = document.createElement('input');
-    inp.type = 'number';
-    inp.inputMode = 'numeric';
-    inp.className = inputClass;
-    inp.value = String(Number(values?.[i - 1] ?? 0) || '');
-    td.appendChild(inp);
-
-    tr.appendChild(td);
-  }
-
-  // totals blanks
-  for (let j = 0; j < 4; j += 1) {
-    const td = document.createElement('td');
-    td.className = 'tot-col';
-    tr.appendChild(td);
-  }
-
-  return tr;
-}
-
-function setHolesView(card, view) {
-  updateGroupHeaderLabels(card, view);
-
-  const showAll = view === 'all';
-  const showFront = view === 'front';
-  const showBack = view === 'back';
-
-  card.querySelectorAll('[data-hole]').forEach((el) => {
-    const h = Number(el.getAttribute('data-hole'));
-    const isFront = h >= 1 && h <= 9;
-    const isBack = h >= 10 && h <= 18;
-
-    el.style.display =
-      showAll ? '' :
-      showFront ? (isFront ? '' : 'none') :
-      showBack ? (isBack ? '' : 'none') :
-      '';
-  });
-}
-
-function createEmptyRound(players) {
-  return {
-    course: '',
-    date: '',
-    groups: [],
-    pars: defaultPars(),
-    strokeIndex: defaultStrokeIndex(),
-    scores: players.map((p) => ({
-      player: p,
-      hdcp: 0,
-      holes: Array(18).fill(''),
-    })),
-  };
-}
-
-function normalizeRound(round, players) {
-  const r = round && typeof round === 'object' ? round : {};
-  const scores = Array.isArray(r.scores) ? r.scores : [];
-  const byPlayer = new Map(scores.map((s) => [s?.player, s]));
-
-  const pars = Array.isArray(r.pars) && r.pars.length === 18 ? r.pars : defaultPars();
-  const strokeIndex = Array.isArray(r.strokeIndex) && r.strokeIndex.length === 18 ? r.strokeIndex : defaultStrokeIndex();
-
-  const nextScores = players.map((p) => {
-    const prev = byPlayer.get(p);
-    if (prev) {
-      const holes = Array.isArray(prev.holes) ? prev.holes : [];
-      return {
-        player: p,
-        hdcp: toNumber(prev.hdcp ?? 0),
-        holes: Array.from({ length: 18 }, (_, i) => holes[i] ?? ''),
-      };
-    }
-    return { player: p, hdcp: 0, holes: Array(18).fill('') };
-  });
-
-  return {
-    course: r.course || '',
-    date: r.date || '',
-    groups: Array.isArray(r.groups) ? r.groups : [],
-    pars,
-    strokeIndex,
-    scores: nextScores,
-  };
-}
-
-/**
- * Header:
- * Row 1: Player/Hdcp (rowspan 4), Front9/Back9/Totals group labels
- * Row 2: Hole numbers + totals labels
- * Row 3: Par inputs
- * Row 4: SI inputs (stroke index)
- */
+// -----------------------------
+// Score table head/body
+// -----------------------------
 function buildScoreTableHead() {
   const thead = document.createElement('thead');
 
-  // Row 1: group labels
+  // Row 1: group headers Front/Back/Totals
   const trGroup = document.createElement('tr');
 
-  const thBlank = document.createElement('th');
-  thBlank.colSpan = 2;
-  thBlank.className = 'sticky-left-head';
-  trGroup.appendChild(thBlank);
+  const thBlank1 = document.createElement('th');
+  thBlank1.textContent = '';
+  trGroup.appendChild(thBlank1);
+
+  const thBlank2 = document.createElement('th');
+  thBlank2.textContent = '';
+  trGroup.appendChild(thBlank2);
 
   const thFront = document.createElement('th');
   thFront.colSpan = 9;
@@ -421,7 +294,7 @@ function buildScoreTableHead() {
 
   thead.appendChild(trGroup);
 
-  // Row 2: hole numbers + totals
+  // Row 2: hole numbers + totals labels
   const tr = document.createElement('tr');
 
   const thPlayer = document.createElement('th');
@@ -436,6 +309,7 @@ function buildScoreTableHead() {
     const th = document.createElement('th');
     th.textContent = String(i);
     th.dataset.hole = String(i);
+    th.classList.add(i <= 9 ? 'hole-front' : 'hole-back'); // ✅ shading hook
     tr.appendChild(th);
   }
 
@@ -452,10 +326,10 @@ function buildScoreTableHead() {
 
 function buildScoreTableBody(round, players, pars = [], strokeIndex = []) {
   const tbody = document.createElement('tbody');
+
   const scores = Array.isArray(round?.scores) ? round.scores : [];
   const byPlayer = new Map(scores.map((s) => [s?.player, s]));
 
-  // safe arrays
   const safePars = Array.isArray(pars) ? pars : [];
   const safeSI = Array.isArray(strokeIndex) ? strokeIndex : [];
 
@@ -463,14 +337,10 @@ function buildScoreTableBody(round, players, pars = [], strokeIndex = []) {
   tbody.appendChild(buildMetaRow('SI', safeSI, 'si-input'));
 
   players.forEach((p) => {
-    const s = byPlayer.get(p) || {
-      player: p,
-      hdcp: 0,
-      holes: Array(18).fill('')
-    };
+    const s = byPlayer.get(p) || { player: p, hdcp: 0, holes: Array(18).fill('') };
 
     const tr = document.createElement('tr');
-    tr.dataset.player = p;
+    tr.setAttribute('data-player', p);
 
     // Player
     const tdPlayer = document.createElement('td');
@@ -487,11 +357,12 @@ function buildScoreTableBody(round, players, pars = [], strokeIndex = []) {
     tdHdcp.appendChild(hdcp);
     tr.appendChild(tdHdcp);
 
-    // Holes 1–18
+    // Holes
     const holes = Array.isArray(s.holes) ? s.holes : [];
     for (let i = 0; i < 18; i += 1) {
       const td = document.createElement('td');
       td.dataset.hole = String(i + 1);
+      td.classList.add((i + 1) <= 9 ? 'hole-front' : 'hole-back'); // ✅ shading hook
 
       const inp = document.createElement('input');
       inp.type = 'text';
@@ -503,16 +374,22 @@ function buildScoreTableBody(round, players, pars = [], strokeIndex = []) {
       tr.appendChild(td);
     }
 
-    // Totals
-    ['Out', 'In', 'Gross', 'Net'].forEach((label, idx) => {
-      const td = document.createElement('td');
-      td.className = 'tot-col';
-      if (idx === 0) td.className += ' tot-out';
-      else if (idx === 1) td.className += ' tot-in';
-      else if (idx === 2) td.className += ' tot-gross';
-      else if (idx === 3) td.className += ' tot-net';
-      tr.appendChild(td);
-    });
+    // Totals cells
+    const tdOut = document.createElement('td');
+    tdOut.className = 'tot-col tot-out';
+    tr.appendChild(tdOut);
+
+    const tdIn = document.createElement('td');
+    tdIn.className = 'tot-col tot-in';
+    tr.appendChild(tdIn);
+
+    const tdGross = document.createElement('td');
+    tdGross.className = 'tot-col tot-gross';
+    tr.appendChild(tdGross);
+
+    const tdNet = document.createElement('td');
+    tdNet.className = 'tot-col tot-net';
+    tr.appendChild(tdNet);
 
     tbody.appendChild(tr);
   });
@@ -520,147 +397,199 @@ function buildScoreTableBody(round, players, pars = [], strokeIndex = []) {
   return tbody;
 }
 
-function renderGroupsUI(card, wrapEl) {
-  let groups = [];
-  try {
-    groups = JSON.parse(card.dataset.groups || '[]');
-    if (!Array.isArray(groups)) groups = [];
-  } catch {
-    groups = [];
+// Par/SI row builder
+function buildMetaRow(label, values, inputClass) {
+  const tr = document.createElement('tr');
+  tr.className = 'meta-row';
+  tr.dataset.meta = String(label || '').toLowerCase();
+
+  // label cell (shows Par / SI)
+  const tdLabel = document.createElement('td');
+  tdLabel.className = 'meta-label';
+  tdLabel.textContent = label;
+  tr.appendChild(tdLabel);
+
+  // blank Hdcp column cell for meta rows
+  const tdBlank = document.createElement('td');
+  tdBlank.textContent = '';
+  tr.appendChild(tdBlank);
+
+  const arr = clamp18(values);
+  for (let i = 1; i <= 18; i += 1) {
+    const td = document.createElement('td');
+    td.dataset.hole = String(i);
+    td.classList.add(i <= 9 ? 'hole-front' : 'hole-back'); // ✅ shading hook
+
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.inputMode = 'numeric';
+    inp.className = inputClass;
+    inp.value = String(arr[i - 1] ?? '');
+
+    td.appendChild(inp);
+    tr.appendChild(td);
   }
 
-  if (!wrapEl) return;
-
-  if (!groups.length) {
-    wrapEl.innerHTML = `<div style="color: rgba(100,116,139,.95);">No groups yet. Click <strong>Auto Foursomes</strong>.</div>`;
-    return;
+  // Totals columns (empty)
+  for (let k = 0; k < 4; k += 1) {
+    tr.appendChild(document.createElement('td'));
   }
 
-  const html = groups
-    .map((g, idx) => {
-      const names = Array.isArray(g) ? g.join(', ') : '';
-      return `<div><strong>Group ${idx + 1}:</strong> ${escapeHtml(names)}</div>`;
-    })
-    .join('');
-
-  wrapEl.innerHTML = html;
+  return tr;
 }
 
-/* ---- Totals + Birdie/Bogey coloring ---- */
+// -----------------------------
+// Front/Back view toggling
+// -----------------------------
+function setToggleActive(toggleEl, view) {
+  toggleEl.querySelectorAll('button[data-view]').forEach((b) => {
+    b.classList.toggle('is-active', b.getAttribute('data-view') === view);
+  });
+}
 
+function setHolesView(card, view) {
+  const table = card.querySelector('table.score-table');
+  if (!table) return;
+
+  const showFront = view === 'front';
+  const showBack = view === 'back';
+  const showAll = view === 'all';
+
+  const holeHeaders = Array.from(table.querySelectorAll('th[data-hole]'));
+  const holeCells = Array.from(table.querySelectorAll('td[data-hole]'));
+
+  function shouldShow(holeNum) {
+    if (showAll) return true;
+    if (showFront) return holeNum >= 1 && holeNum <= 9;
+    if (showBack) return holeNum >= 10 && holeNum <= 18;
+    return true;
+  }
+
+  holeHeaders.forEach((th) => {
+    const n = toNumber(th.dataset.hole);
+    th.style.display = shouldShow(n) ? '' : 'none';
+  });
+
+  holeCells.forEach((td) => {
+    const n = toNumber(td.dataset.hole);
+    td.style.display = shouldShow(n) ? '' : 'none';
+  });
+
+  // Group header row: hide front/back groups when not relevant
+  const groupRow = table.querySelector('thead tr:first-child');
+  if (groupRow) {
+    const thFront = groupRow.querySelector('.front-nine');
+    const thBack = groupRow.querySelector('.back-nine');
+
+    if (thFront) thFront.style.display = (showBack && !showAll) ? 'none' : '';
+    if (thBack) thBack.style.display = (showFront && !showAll) ? 'none' : '';
+  }
+}
+
+// -----------------------------
+// Totals auto-calc
+// -----------------------------
 function recomputeAllTotalsAndColors(table) {
-  const trs = Array.from(table.querySelectorAll('tbody tr'));
-  trs.forEach((tr) => recomputeRowTotalsAndColors(tr, table));
+  if (!table) return;
+
+  const bodyRows = Array.from(table.querySelectorAll('tbody tr[data-player]'));
+
+  bodyRows.forEach((tr) => {
+    const holeInputs = Array.from(tr.querySelectorAll('td[data-hole] input.score-input'));
+    const vals = holeInputs.map((inp) => toNumber(inp.value));
+
+    const out = vals.slice(0, 9).reduce((a, b) => a + b, 0);
+    const inn = vals.slice(9, 18).reduce((a, b) => a + b, 0);
+    const gross = out + inn;
+
+    const hdcp = toNumber(tr.querySelector('input.handicap-input')?.value);
+    const net = gross - hdcp;
+
+    const tdOut = tr.querySelector('.tot-out');
+    const tdIn = tr.querySelector('.tot-in');
+    const tdGross = tr.querySelector('.tot-gross');
+    const tdNet = tr.querySelector('.tot-net');
+
+    if (tdOut) tdOut.textContent = out ? String(out) : '';
+    if (tdIn) tdIn.textContent = inn ? String(inn) : '';
+    if (tdGross) tdGross.textContent = gross ? String(gross) : '';
+    if (tdNet) tdNet.textContent = gross ? String(net) : '';
+  });
 }
 
-function recomputeRowTotalsAndColors(tr, table) {
-  const pars = getParsFromTable(table);
-
-  const holeTds = Array.from(tr.querySelectorAll('td[data-hole]'));
-  const holeInputs = Array.from(tr.querySelectorAll('input.score-input'));
-  const vals = holeInputs.map((inp) => toNumber(inp.value));
-
-  const out = sum(vals.slice(0, 9));
-  const inn = sum(vals.slice(9, 18));
-  const gross = out + inn;
-
-  const hdcp = toNumber(tr.querySelector('input.handicap-input')?.value ?? 0);
-  const net = gross - hdcp;
-
-  tr.querySelector('.tot-out') && (tr.querySelector('.tot-out').textContent = out ? String(out) : '');
-  tr.querySelector('.tot-in') && (tr.querySelector('.tot-in').textContent = inn ? String(inn) : '');
-  tr.querySelector('.tot-gross') && (tr.querySelector('.tot-gross').textContent = gross ? String(gross) : '');
-  tr.querySelector('.tot-net') && (tr.querySelector('.tot-net').textContent = gross ? String(net) : '');
-
-  // Color each hole cell based on par if par exists
-  for (let i = 0; i < 18; i += 1) {
-    const td = holeTds[i];
-    if (!td) continue;
-
-    // Clear prior classes
-    td.classList.remove('score-eagle', 'score-birdie', 'score-par', 'score-bogey', 'score-double');
-
-    const score = vals[i];
-    const par = toNumber(pars[i]);
-
-    if (!par || !score) continue; // don't color if missing par or score
-
-    const diff = score - par;
-    if (diff <= -2) td.classList.add('score-eagle');
-    else if (diff === -1) td.classList.add('score-birdie');
-    else if (diff === 0) td.classList.add('score-par');
-    else if (diff === 1) td.classList.add('score-bogey');
-    else if (diff >= 2) td.classList.add('score-double');
-  }
-}
-
-/* ---- Hole meta persistence ---- */
-
+// -----------------------------
+// Persist Par/SI to dataset
+// -----------------------------
 function persistHoleMetaFromTableToCard(card, table) {
-  const pars = getParsFromTable(table);
-  const si = getStrokeIndexFromTable(table);
-  card.dataset.pars = JSON.stringify(pars);
-  card.dataset.strokeIndex = JSON.stringify(si);
+  const parRow = table.querySelector('tbody tr[data-meta="par"]');
+  const siRow = table.querySelector('tbody tr[data-meta="si"]');
+
+  const pars = [];
+  const si = [];
+
+  if (parRow) {
+    const cells = Array.from(parRow.querySelectorAll('td[data-hole] input'));
+    cells.forEach((inp) => pars.push(inp.value ?? ''));
+  }
+  if (siRow) {
+    const cells = Array.from(siRow.querySelectorAll('td[data-hole] input'));
+    cells.forEach((inp) => si.push(inp.value ?? ''));
+  }
+
+  card.dataset.pars = JSON.stringify(clamp18(pars));
+  card.dataset.strokeIndex = JSON.stringify(clamp18(si));
 }
 
 function getParsFromCard(card) {
-  try {
-    const p = JSON.parse(card.dataset.pars || '[]');
-    if (Array.isArray(p) && p.length === 18) return p;
-  } catch {}
-  return defaultPars();
+  return safeParseJSON(card?.dataset?.pars, defaultPars());
 }
 
 function getStrokeIndexFromCard(card) {
+  return safeParseJSON(card?.dataset?.strokeIndex, defaultStrokeIndex());
+}
+
+function safeParseJSON(str, fallback) {
   try {
-    const si = JSON.parse(card.dataset.strokeIndex || '[]');
-    if (Array.isArray(si) && si.length === 18) return si;
-  } catch {}
-  return defaultStrokeIndex();
+    if (!str || !String(str).trim()) return fallback;
+    const v = JSON.parse(str);
+    return v ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
 
-function getParsFromTable(table) {
-  const inputs = Array.from(table.querySelectorAll('thead input.par-input'));
-  if (inputs.length !== 18) return defaultPars();
-  return inputs.map((i) => toNumber(i.value));
+// -----------------------------
+// Groups (foursomes) UI
+// -----------------------------
+function makeFoursomes(players) {
+  const list = Array.isArray(players) ? players.slice() : [];
+  const groups = [];
+  for (let i = 0; i < list.length; i += 4) {
+    groups.push(list.slice(i, i + 4));
+  }
+  return groups;
 }
 
-function getStrokeIndexFromTable(table) {
-  const inputs = Array.from(table.querySelectorAll('thead input.si-input'));
-  if (inputs.length !== 18) return defaultStrokeIndex();
-  return inputs.map((i) => toNumber(i.value));
+function renderGroupsUI(card, wrap) {
+  const groups = safeParseJSON(card?.dataset?.groups, []);
+  if (!wrap) return;
+
+  if (!Array.isArray(groups) || groups.length === 0) {
+    wrap.textContent = '';
+    return;
+  }
+
+  const parts = groups.map((g, idx) => `Group ${idx + 1}: ${Array.isArray(g) ? g.join(', ') : ''}`);
+  wrap.textContent = parts.join('  •  ');
 }
 
-function defaultPars() {
-  // Neutral defaults; user can edit. (Leaving 0 means no coloring until filled.)
-  return Array(18).fill(0);
-}
-
-function defaultStrokeIndex() {
-  // Neutral defaults; user can edit.
-  return Array(18).fill(0);
-}
-
-/* ---- Utilities ---- */
-
-function sum(arr) {
-  return arr.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
-}
-
-function toNumber(v) {
-  const n = Number(String(v ?? '').trim());
-  return Number.isFinite(n) ? n : 0;
-}
-
-/* Escaping helpers */
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
-function escapeAttr(str) {
-  return escapeHtml(str).replaceAll('\n', ' ');
+// -----------------------------
+// Helpers
+// -----------------------------
+function escapeAttr(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
