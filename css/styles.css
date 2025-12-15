@@ -576,6 +576,75 @@ textarea{ resize: vertical; }
   }
 }
 
+/* =========================================================
+   Scorecard header: group labels + Par/SI rows
+   ========================================================= */
+
+/* Group label row */
+.round-card .score-table thead tr:first-child th{
+  background: rgba(226,232,240,.75) !important;
+  font-size: .72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  text-align: center;
+  border-bottom: 1px solid rgba(148,163,184,.35);
+}
+
+/* Hole number row */
+.round-card .score-table thead tr:nth-child(2) th{
+  background: #f0fdf4 !important;
+  font-size: .8rem;
+  font-weight: 800;
+}
+
+/* Par/SI input rows */
+.round-card .score-table thead tr.par-row th,
+.round-card .score-table thead tr.si-row th{
+  background: rgba(248,250,252,.92) !important;
+  border-bottom: 1px solid rgba(148,163,184,.18);
+  padding: 6px 6px;
+}
+
+.round-card .score-table thead input.par-input,
+.round-card .score-table thead input.si-input{
+  width: 30px;
+  height: 24px;
+  padding: 0;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 900;
+  border: 1px solid rgba(148,163,184,.30);
+  background: rgba(255,255,255,.95);
+}
+
+/* Divider between Front and Back 9 */
+.round-card .score-table th[data-hole="9"],
+.round-card .score-table td[data-hole="9"]{
+  border-right: 2px solid rgba(148,163,184,.40);
+}
+
+/* =========================================================
+   Birdie / Bogey coloring (applies to hole cells)
+   ========================================================= */
+
+.round-card .score-table td.score-eagle{
+  background: rgba(253,230,138,.55) !important; /* gold-ish */
+  border-bottom-color: rgba(245,158,11,.25);
+}
+.round-card .score-table td.score-birdie{
+  background: rgba(187,247,208,.55) !important; /* green */
+}
+.round-card .score-table td.score-par{
+  background: rgba(241,245,249,.65) !important; /* light neutral */
+}
+.round-card .score-table td.score-bogey{
+  background: rgba(254,249,195,.75) !important; /* yellow */
+}
+.round-card .score-table td.score-double{
+  background: rgba(254,202,202,.65) !important; /* red */
+}
+
 /* ===========================
    FOOTER
    =========================== */

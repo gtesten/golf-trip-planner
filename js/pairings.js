@@ -15,20 +15,6 @@ export function getPlayersFromTextarea() {
 
 /**
  * Render Pairings tab from model
- * Model shape:
- * {
- *   players: [ "Glenn", "Ryan", ... ],
- *   rounds: [
- *     {
- *       course: "",
- *       date: "",
- *       groups: [ ["A","B","C","D"], ... ],
- *       scores: [
- *         { player:"Glenn", hdcp:0, holes:["",...18] }
- *       ]
- *     }
- *   ]
- * }
  */
 export function renderPairingsFromModel(model) {
   const playersArea = document.getElementById('playersInput');
@@ -39,7 +25,6 @@ export function renderPairingsFromModel(model) {
     return;
   }
 
-  // Normalize model
   const incoming = model && typeof model === 'object' ? model : {};
   incoming.rounds = Array.isArray(incoming.rounds) ? incoming.rounds : [];
   incoming.players = Array.isArray(incoming.players) ? incoming.players : [];
@@ -54,12 +39,11 @@ export function renderPairingsFromModel(model) {
     playersList = incoming.players.slice();
   }
 
-  // If players exist but no rounds, create one empty round so the scorecard appears immediately
+  // If players exist but no rounds, create one empty round so the scorecard appears
   if (playersList.length > 0 && incoming.rounds.length === 0) {
     incoming.rounds = [createEmptyRound(playersList)];
   }
 
-  // Clear + rebuild rounds
   roundsContainer.innerHTML = '';
   incoming.rounds.forEach((r) => {
     const normalized = normalizeRound(r, playersList);
@@ -78,13 +62,14 @@ export function createRoundCard(round = {}, playersList = []) {
   const card = document.createElement('div');
   card.className = 'round-card';
 
-  // Persist groups in dataset for serialization
+  // Persist groups + hole meta in dataset for serialization
   card.dataset.groups = JSON.stringify(Array.isArray(r.groups) ? r.groups : []);
+  card.dataset.pars = JSON.stringify(Array.isArray(r.pars) ? r.pars : defaultPars());
+  card.dataset.strokeIndex = JSON.stringify(Array.isArray(r.strokeIndex) ? r.strokeIndex : defaultStrokeIndex());
 
-  // Header area
+  // Header
   const header = document.createElement('div');
   header.className = 'round-header';
-
   header.innerHTML = `
     <div style="flex:1; min-width:220px;">
       <label style="display:block; font-size:.8rem; color: var(--muted); font-weight:700; margin-bottom:.35rem;">Course</label>
@@ -102,7 +87,6 @@ export function createRoundCard(round = {}, playersList = []) {
       <button type="button" class="small remove-round" style="background:#ef4444;">Remove</button>
     </div>
   `;
-
   card.appendChild(header);
 
   // Groups display
@@ -117,47 +101,42 @@ export function createRoundCard(round = {}, playersList = []) {
   const toggle = document.createElement('div');
   toggle.className = 'holes-toggle';
   toggle.innerHTML = `
-    <button type="button" data-view="front" class="is-active">Front 9</button>
+    <button type="button" data-view="front">Front 9</button>
     <button type="button" data-view="back">Back 9</button>
-    <button type="button" data-view="all">All</button>
+    <button type="button" data-view="all" class="is-active">All</button>
   `;
   card.appendChild(toggle);
 
-  // Scores table wrapper
+  // Table
   const scroll = document.createElement('div');
   scroll.className = 'table-scroll';
 
   const table = document.createElement('table');
   table.className = 'score-table';
 
-  table.appendChild(buildScoreTableHead());
+  table.appendChild(buildScoreTableHead(getParsFromCard(card), getStrokeIndexFromCard(card)));
   table.appendChild(buildScoreTableBody(r, players));
 
   scroll.appendChild(table);
   card.appendChild(scroll);
 
-  // Initial groups render
   renderGroupsUI(card, groupsWrap);
 
-  // Default view: Front 9
-  setHolesView(card, 'front');
+  // Default view: All (as requested)
+  setHolesView(card, 'all');
+  setToggleActive(toggle, 'all');
 
   // Toggle wiring
   toggle.addEventListener('click', (e) => {
     const btn = e.target?.closest?.('button[data-view]');
     if (!btn) return;
-
-    toggle.querySelectorAll('button').forEach((b) => b.classList.remove('is-active'));
-    btn.classList.add('is-active');
-
-    const view = btn.getAttribute('data-view') || 'front';
+    const view = btn.getAttribute('data-view') || 'all';
     setHolesView(card, view);
+    setToggleActive(toggle, view);
   });
 
   // Wire actions
-  header.querySelector('.remove-round')?.addEventListener('click', () => {
-    card.remove();
-  });
+  header.querySelector('.remove-round')?.addEventListener('click', () => card.remove());
 
   header.querySelector('.auto-foursomes')?.addEventListener('click', () => {
     const groups = makeFoursomes(players);
@@ -167,21 +146,30 @@ export function createRoundCard(round = {}, playersList = []) {
 
   header.querySelector('.clear-scores')?.addEventListener('click', () => {
     table.querySelectorAll('input.score-input').forEach((inp) => (inp.value = ''));
-    recomputeAllTotals(table);
+    recomputeAllTotalsAndColors(table);
   });
 
-  // Recompute totals on any score input change
+  // Handle input changes (scores, hdcp, par, stroke index)
   table.addEventListener('input', (e) => {
     const t = e.target;
     if (!(t instanceof HTMLInputElement)) return;
+
+    // Par / SI changes should recolor all rows
+    if (t.classList.contains('par-input') || t.classList.contains('si-input')) {
+      // Persist to card dataset so it saves
+      persistHoleMetaFromTableToCard(card, table);
+      recomputeAllTotalsAndColors(table);
+      return;
+    }
+
     if (t.classList.contains('score-input') || t.classList.contains('handicap-input')) {
       const tr = t.closest('tr');
-      if (tr) recomputeRowTotals(tr);
+      if (tr) recomputeRowTotalsAndColors(tr, table);
     }
   });
 
-  // Compute totals at start
-  recomputeAllTotals(table);
+  // Compute totals + colors initially
+  recomputeAllTotalsAndColors(table);
 
   return card;
 }
@@ -208,6 +196,18 @@ export function getPairingsModelFromDOM() {
       groups = [];
     }
 
+    let pars = defaultPars();
+    try {
+      const p = JSON.parse(card.dataset.pars || '[]');
+      if (Array.isArray(p) && p.length === 18) pars = p;
+    } catch {}
+
+    let strokeIndex = defaultStrokeIndex();
+    try {
+      const si = JSON.parse(card.dataset.strokeIndex || '[]');
+      if (Array.isArray(si) && si.length === 18) strokeIndex = si;
+    } catch {}
+
     const table = card.querySelector('table.score-table');
     const scoreRows = [];
 
@@ -222,14 +222,15 @@ export function getPairingsModelFromDOM() {
         const holeInputs = Array.from(tr.querySelectorAll('input.score-input'));
         holeInputs.forEach((inp) => holes.push(inp.value ?? ''));
 
-        // Ensure exactly 18
         const fixedHoles = Array.from({ length: 18 }, (_, i) => holes[i] ?? '');
         scoreRows.push({ player, hdcp, holes: fixedHoles });
       });
     }
 
-    // Normalize: make sure every player has a score row
-    const normalized = normalizeRound({ course, date, groups, scores: scoreRows }, players);
+    const normalized = normalizeRound(
+      { course, date, groups, pars, strokeIndex, scores: scoreRows },
+      players
+    );
     rounds.push(normalized);
   });
 
@@ -240,7 +241,42 @@ export function getPairingsModelFromDOM() {
    Helpers
 --------------------------- */
 
+function setToggleActive(toggleEl, view) {
+  toggleEl.querySelectorAll('button').forEach((b) => b.classList.remove('is-active'));
+  toggleEl.querySelector(`button[data-view="${view}"]`)?.classList.add('is-active');
+}
+
+/**
+ * Collapse/label the group header based on view without breaking table layout.
+ * (We keep cells, but dim and adjust text so it looks intentional.)
+ */
+function updateGroupHeaderLabels(card, view) {
+  const thFront = card.querySelector('th.front-nine');
+  const thBack = card.querySelector('th.back-nine');
+
+  if (!thFront || !thBack) return;
+
+  if (view === 'front') {
+    thFront.style.opacity = '1';
+    thFront.textContent = 'Front 9';
+    thBack.style.opacity = '.25';
+    thBack.textContent = 'Back 9';
+  } else if (view === 'back') {
+    thFront.style.opacity = '.25';
+    thFront.textContent = 'Front 9';
+    thBack.style.opacity = '1';
+    thBack.textContent = 'Back 9';
+  } else {
+    thFront.style.opacity = '1';
+    thFront.textContent = 'Front 9';
+    thBack.style.opacity = '1';
+    thBack.textContent = 'Back 9';
+  }
+}
+
 function setHolesView(card, view) {
+  updateGroupHeaderLabels(card, view);
+
   const showAll = view === 'all';
   const showFront = view === 'front';
   const showBack = view === 'back';
@@ -263,6 +299,8 @@ function createEmptyRound(players) {
     course: '',
     date: '',
     groups: [],
+    pars: defaultPars(),
+    strokeIndex: defaultStrokeIndex(),
     scores: players.map((p) => ({
       player: p,
       hdcp: 0,
@@ -275,6 +313,9 @@ function normalizeRound(round, players) {
   const r = round && typeof round === 'object' ? round : {};
   const scores = Array.isArray(r.scores) ? r.scores : [];
   const byPlayer = new Map(scores.map((s) => [s?.player, s]));
+
+  const pars = Array.isArray(r.pars) && r.pars.length === 18 ? r.pars : defaultPars();
+  const strokeIndex = Array.isArray(r.strokeIndex) && r.strokeIndex.length === 18 ? r.strokeIndex : defaultStrokeIndex();
 
   const nextScores = players.map((p) => {
     const prev = byPlayer.get(p);
@@ -293,43 +334,47 @@ function normalizeRound(round, players) {
     course: r.course || '',
     date: r.date || '',
     groups: Array.isArray(r.groups) ? r.groups : [],
+    pars,
+    strokeIndex,
     scores: nextScores,
   };
 }
 
-function buildScoreTableHead() {
+/**
+ * Header:
+ * Row 1: Player/Hdcp (rowspan 4), Front9/Back9/Totals group labels
+ * Row 2: Hole numbers + totals labels
+ * Row 3: Par inputs
+ * Row 4: SI inputs (stroke index)
+ */
+function buildScoreTableHead(pars, strokeIndex) {
   const thead = document.createElement('thead');
 
-  /* ---------- GROUP LABEL ROW ---------- */
+  // --- Row 1: group labels
   const trGroup = document.createElement('tr');
 
-  // Player
   const thPlayerGroup = document.createElement('th');
-  thPlayerGroup.rowSpan = 2;
+  thPlayerGroup.rowSpan = 4;
   thPlayerGroup.textContent = 'Player';
   trGroup.appendChild(thPlayerGroup);
 
-  // Hdcp
   const thHdcpGroup = document.createElement('th');
-  thHdcpGroup.rowSpan = 2;
+  thHdcpGroup.rowSpan = 4;
   thHdcpGroup.textContent = 'Hdcp';
   trGroup.appendChild(thHdcpGroup);
 
-  // Front 9 group
   const thFront = document.createElement('th');
   thFront.colSpan = 9;
   thFront.textContent = 'Front 9';
   thFront.className = 'nine-group front-nine';
   trGroup.appendChild(thFront);
 
-  // Back 9 group
   const thBack = document.createElement('th');
   thBack.colSpan = 9;
   thBack.textContent = 'Back 9';
   thBack.className = 'nine-group back-nine';
   trGroup.appendChild(thBack);
 
-  // Totals group
   const thTotals = document.createElement('th');
   thTotals.colSpan = 4;
   thTotals.textContent = 'Totals';
@@ -338,23 +383,75 @@ function buildScoreTableHead() {
 
   thead.appendChild(trGroup);
 
-  /* ---------- HOLE NUMBER ROW ---------- */
+  // --- Row 2: hole numbers + totals labels
   const trHoles = document.createElement('tr');
-
   for (let i = 1; i <= 18; i += 1) {
     const th = document.createElement('th');
     th.textContent = String(i);
     th.dataset.hole = String(i);
     trHoles.appendChild(th);
   }
-
   ['Out', 'In', 'Gross', 'Net'].forEach((label) => {
     const th = document.createElement('th');
     th.textContent = label;
     trHoles.appendChild(th);
   });
-
   thead.appendChild(trHoles);
+
+  // --- Row 3: Par inputs
+  const trPar = document.createElement('tr');
+  trPar.className = 'par-row';
+
+  for (let i = 1; i <= 18; i += 1) {
+    const th = document.createElement('th');
+    th.dataset.hole = String(i);
+
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.inputMode = 'numeric';
+    inp.className = 'par-input';
+    inp.value = String(toNumber(pars[i - 1] ?? 0) || '');
+    inp.title = `Par for hole ${i}`;
+    th.appendChild(inp);
+
+    trPar.appendChild(th);
+  }
+
+  // blanks under totals
+  for (let j = 0; j < 4; j += 1) {
+    const th = document.createElement('th');
+    th.textContent = '';
+    trPar.appendChild(th);
+  }
+  thead.appendChild(trPar);
+
+  // --- Row 4: Stroke Index inputs
+  const trSi = document.createElement('tr');
+  trSi.className = 'si-row';
+
+  for (let i = 1; i <= 18; i += 1) {
+    const th = document.createElement('th');
+    th.dataset.hole = String(i);
+
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.inputMode = 'numeric';
+    inp.className = 'si-input';
+    inp.value = String(toNumber(strokeIndex[i - 1] ?? 0) || '');
+    inp.title = `Stroke index for hole ${i}`;
+    th.appendChild(inp);
+
+    trSi.appendChild(th);
+  }
+
+  // blanks under totals
+  for (let j = 0; j < 4; j += 1) {
+    const th = document.createElement('th');
+    th.textContent = '';
+    trSi.appendChild(th);
+  }
+  thead.appendChild(trSi);
+
   return thead;
 }
 
@@ -390,7 +487,7 @@ function buildScoreTableBody(round, players) {
     const holes = Array.isArray(s.holes) ? s.holes : [];
     for (let i = 0; i < 18; i += 1) {
       const td = document.createElement('td');
-      td.dataset.hole = String(i + 1); // for Front/Back toggle
+      td.dataset.hole = String(i + 1);
 
       const inp = document.createElement('input');
       inp.type = 'text';
@@ -460,13 +557,17 @@ function renderGroupsUI(card, wrapEl) {
   wrapEl.innerHTML = html;
 }
 
-/* Totals */
-function recomputeAllTotals(table) {
+/* ---- Totals + Birdie/Bogey coloring ---- */
+
+function recomputeAllTotalsAndColors(table) {
   const trs = Array.from(table.querySelectorAll('tbody tr'));
-  trs.forEach(recomputeRowTotals);
+  trs.forEach((tr) => recomputeRowTotalsAndColors(tr, table));
 }
 
-function recomputeRowTotals(tr) {
+function recomputeRowTotalsAndColors(tr, table) {
+  const pars = getParsFromTable(table);
+
+  const holeTds = Array.from(tr.querySelectorAll('td[data-hole]'));
   const holeInputs = Array.from(tr.querySelectorAll('input.score-input'));
   const vals = holeInputs.map((inp) => toNumber(inp.value));
 
@@ -477,16 +578,81 @@ function recomputeRowTotals(tr) {
   const hdcp = toNumber(tr.querySelector('input.handicap-input')?.value ?? 0);
   const net = gross - hdcp;
 
-  const outCell = tr.querySelector('.tot-out');
-  const inCell = tr.querySelector('.tot-in');
-  const grossCell = tr.querySelector('.tot-gross');
-  const netCell = tr.querySelector('.tot-net');
+  tr.querySelector('.tot-out') && (tr.querySelector('.tot-out').textContent = out ? String(out) : '');
+  tr.querySelector('.tot-in') && (tr.querySelector('.tot-in').textContent = inn ? String(inn) : '');
+  tr.querySelector('.tot-gross') && (tr.querySelector('.tot-gross').textContent = gross ? String(gross) : '');
+  tr.querySelector('.tot-net') && (tr.querySelector('.tot-net').textContent = gross ? String(net) : '');
 
-  if (outCell) outCell.textContent = out ? String(out) : '';
-  if (inCell) inCell.textContent = inn ? String(inn) : '';
-  if (grossCell) grossCell.textContent = gross ? String(gross) : '';
-  if (netCell) netCell.textContent = gross ? String(net) : '';
+  // Color each hole cell based on par if par exists
+  for (let i = 0; i < 18; i += 1) {
+    const td = holeTds[i];
+    if (!td) continue;
+
+    // Clear prior classes
+    td.classList.remove('score-eagle', 'score-birdie', 'score-par', 'score-bogey', 'score-double');
+
+    const score = vals[i];
+    const par = toNumber(pars[i]);
+
+    if (!par || !score) continue; // don't color if missing par or score
+
+    const diff = score - par;
+    if (diff <= -2) td.classList.add('score-eagle');
+    else if (diff === -1) td.classList.add('score-birdie');
+    else if (diff === 0) td.classList.add('score-par');
+    else if (diff === 1) td.classList.add('score-bogey');
+    else if (diff >= 2) td.classList.add('score-double');
+  }
 }
+
+/* ---- Hole meta persistence ---- */
+
+function persistHoleMetaFromTableToCard(card, table) {
+  const pars = getParsFromTable(table);
+  const si = getStrokeIndexFromTable(table);
+  card.dataset.pars = JSON.stringify(pars);
+  card.dataset.strokeIndex = JSON.stringify(si);
+}
+
+function getParsFromCard(card) {
+  try {
+    const p = JSON.parse(card.dataset.pars || '[]');
+    if (Array.isArray(p) && p.length === 18) return p;
+  } catch {}
+  return defaultPars();
+}
+
+function getStrokeIndexFromCard(card) {
+  try {
+    const si = JSON.parse(card.dataset.strokeIndex || '[]');
+    if (Array.isArray(si) && si.length === 18) return si;
+  } catch {}
+  return defaultStrokeIndex();
+}
+
+function getParsFromTable(table) {
+  const inputs = Array.from(table.querySelectorAll('thead input.par-input'));
+  if (inputs.length !== 18) return defaultPars();
+  return inputs.map((i) => toNumber(i.value));
+}
+
+function getStrokeIndexFromTable(table) {
+  const inputs = Array.from(table.querySelectorAll('thead input.si-input'));
+  if (inputs.length !== 18) return defaultStrokeIndex();
+  return inputs.map((i) => toNumber(i.value));
+}
+
+function defaultPars() {
+  // Neutral defaults; user can edit. (Leaving 0 means no coloring until filled.)
+  return Array(18).fill(0);
+}
+
+function defaultStrokeIndex() {
+  // Neutral defaults; user can edit.
+  return Array(18).fill(0);
+}
+
+/* ---- Utilities ---- */
 
 function sum(arr) {
   return arr.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
