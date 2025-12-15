@@ -13,10 +13,16 @@
   --radius-lg:18px;
   --radius-md:14px;
 
-  /* Score table column widths */
-  --col-player: 160px;
-  --col-hdcp: 64px;
-  --col-hole: 44px;
+  /* Score table column widths (safe defaults) */
+  --col-player: 150px;
+  --col-hdcp: 60px;
+  --col-hole: 34px;
+  --col-outin: 48px;
+  --col-total: 64px;
+
+  --shadow: 0 16px 36px rgba(15,23,42,.12);
+  --shadow-soft: 0 10px 22px rgba(15,23,42,.08);
+  --focus: rgba(5,150,105,.25);
 }
 
 *{ box-sizing:border-box; }
@@ -59,7 +65,7 @@ main{
   background: var(--panel);
   border-radius: 22px;
   border: 1px solid var(--border);
-  box-shadow: 0 16px 36px rgba(15,23,42,.12);
+  box-shadow: var(--shadow);
 }
 
 /* ===========================
@@ -68,19 +74,23 @@ main{
 button{
   border: none;
   border-radius: 999px;
-  padding: .45rem .9rem;
+  padding: .55rem .95rem;
   font-size: .9rem;
+  font-weight: 700;
   background: var(--green);
   color: white;
   cursor: pointer;
+  transition: transform .04s ease, filter .12s ease;
 }
+button:hover{ filter: brightness(1.04); }
+button:active{ transform: translateY(1px); }
 button.secondary{
   background: #e5e7eb;
   color: var(--text);
 }
 button.small{
   font-size: .75rem;
-  padding: .25rem .6rem;
+  padding: .30rem .65rem;
 }
 
 /* ===========================
@@ -90,10 +100,11 @@ button.small{
   display:flex;
   gap:.4rem;
   margin-bottom: 1rem;
+  flex-wrap: wrap;
 }
 .tab-btn{
   border-radius: 999px;
-  padding:.35rem .75rem;
+  padding:.38rem .78rem;
   border:1px solid transparent;
   background:transparent;
   cursor:pointer;
@@ -102,7 +113,7 @@ button.small{
   background: rgba(5,150,105,.12);
   border-color: rgba(5,150,105,.35);
   color: var(--green-dark);
-  font-weight:600;
+  font-weight:700;
 }
 .tab-panel{ display:none; }
 .tab-panel.active{ display:block; }
@@ -114,13 +125,21 @@ input, textarea{
   width:100%;
   border-radius: var(--radius-md);
   border:1px solid var(--border);
-  padding:.5rem .6rem;
+  padding:.55rem .65rem;
   font-size:.9rem;
+  outline: none;
+  background: #fff;
+}
+input:focus, textarea:focus{
+  border-color: rgba(5,150,105,.55);
+  box-shadow: 0 0 0 4px var(--focus);
 }
 textarea{ resize: vertical; }
 
+/* Players textarea */
 #playersInput{
-  min-height: 220px;
+  min-height: 260px;
+  line-height: 1.35;
 }
 
 /* ===========================
@@ -131,9 +150,10 @@ textarea{ resize: vertical; }
   background: white;
   border-radius: var(--radius-lg);
   border:1px solid var(--border);
-  padding: .9rem 1rem;
+  padding: .95rem 1rem;
   margin-bottom: .85rem;
-  overflow: hidden; /* CRITICAL */
+  overflow: hidden; /* contains any child overflow */
+  box-shadow: 0 8px 20px rgba(2,6,23,.05);
 }
 
 .round-header,
@@ -145,114 +165,8 @@ textarea{ resize: vertical; }
 }
 
 /* ===========================
-   GRID / FLEX SHRINK FIX
-   =========================== */
-@media (min-width: 980px){
-  #pairingsTab .stack > div{
-    min-width: 0; /* PREVENT PAGE OVERFLOW */
-  }
-}
-
-/* ===========================
-   SCORE TABLE CONTAINER
-   =========================== */
-.round-card .table-scroll{
-  width:100%;
-  overflow-x:auto;
-  overflow-y:hidden;
-  -webkit-overflow-scrolling: touch;
-  border-radius: var(--radius-md);
-  border:1px solid var(--border);
-  background:white;
-  position:relative;
-}
-
-/* ===========================
-   SCORE TABLE (FIT INSIDE PAGE)
-   =========================== */
-.round-card .score-table{
-  width:100%;              /* KEY CHANGE */
-  table-layout: fixed;     /* predictable */
-}
-
-/* Column sizing via colgroup */
-.round-card .score-table col.col-player{ width: var(--col-player); }
-.round-card .score-table col.col-hdcp{ width: var(--col-hdcp); }
-.round-card .score-table col.col-hole{ width: var(--col-hole); }
-
-/* Cells */
-.round-card .score-table th,
-.round-card .score-table td{
-  padding:.4rem .45rem;
-  font-size:.85rem;
-  white-space: nowrap;
-  border-bottom:1px solid rgba(148,163,184,.18);
-}
-
-/* Header */
-.round-card .score-table th{
-  background: #f0fdf4;
-  font-weight:600;
-  color:#065f46;
-}
-
-/* Sticky header */
-.round-card .table-scroll thead th{
-  position: sticky;
-  top: 0;
-  z-index: 5;
-}
-
-/* Sticky Player column */
-.round-card .table-scroll th:nth-child(1),
-.round-card .table-scroll td:nth-child(1){
-  position: sticky;
-  left: 0;
-  z-index: 6;
-  background: white;
-}
-
-/* Sticky Hdcp column */
-.round-card .table-scroll th:nth-child(2),
-.round-card .table-scroll td:nth-child(2){
-  position: sticky;
-  left: var(--col-player);
-  z-index: 6;
-  background: white;
-  box-shadow: 6px 0 0 rgba(148,163,184,.18);
-}
-
-/* Inputs */
-.round-card td input{
-  width:100%;
-  max-width: 42px;
-  text-align:center;
-  padding:.35rem .4rem;
-  border-radius: 10px;
-}
-
-/* ===========================
-   FOOTER
-   =========================== */
-footer{
-  text-align:right;
-  font-size:.75rem;
-  color: var(--muted);
-  margin-top:1rem;
-}
-
-/* ===========================
-   MOBILE
-   =========================== */
-@media (max-width: 640px){
-  main{ padding: 1rem; }
-  header{ text-align:center; }
-  .tabs{ flex-wrap:wrap; }
-}
-/* ===========================
    Pairings & Scores: cleaner layout
    =========================== */
-
 .pairings-shell{
   display: grid;
   gap: 1rem;
@@ -277,7 +191,7 @@ footer{
   border: 1px solid rgba(148,163,184,.25);
   border-radius: 18px;
   padding: .9rem 1rem;
-  box-shadow: 0 10px 22px rgba(15,23,42,.08);
+  box-shadow: var(--shadow-soft);
 }
 
 .panel-head{
@@ -290,7 +204,7 @@ footer{
 
 .panel-title{
   font-size: 1.05rem;
-  font-weight: 750;
+  font-weight: 800;
   letter-spacing: .2px;
 }
 
@@ -323,19 +237,18 @@ footer{
   border:0;
 }
 
-/* Players textarea polish */
-#playersInput{
-  min-height: 260px;
+/* ===========================
+   GRID / FLEX SHRINK FIX
+   =========================== */
+@media (min-width: 980px){
+  #pairingsTab .stack > div{
+    min-width: 0; /* prevent page overflow */
+  }
 }
 
 /* ===========================
-   Score tables: scroll + sticky left + sticky right totals
+   SCORE TABLE CONTAINER (SCROLL ON SMALL / FIT ON LARGE)
    =========================== */
-
-/* Keep overflow contained inside cards */
-.round-card{ overflow: hidden; }
-
-/* Scroll boundary */
 .round-card .table-scroll{
   width: 100%;
   overflow-x: auto;
@@ -345,24 +258,49 @@ footer{
   border: 1px solid rgba(148,163,184,.25);
   background: rgba(255,255,255,.98);
   position: relative;
-}
-
-/* Improve scroll UX: a little padding so first/last cols aren't flush */
-.round-card .table-scroll{
   padding-bottom: 2px;
 }
 
-/* deterministic sizing */
+/* On wide screens, show the whole table without forcing a scrollbar.
+   NOTE: if your table truly exceeds the card width, it will still need scroll.
+*/
+@media (min-width: 1200px){
+  .round-card .table-scroll{
+    overflow-x: hidden;
+  }
+}
+
+/* ===========================
+   SCORE TABLE
+   =========================== */
 .round-card .score-table{
   width: 100%;
   table-layout: fixed;
 }
 
-/* tighter cell sizing */
+/* Column sizing via colgroup (best) */
+.round-card .score-table col.col-player{ width: var(--col-player); }
+.round-card .score-table col.col-hdcp{ width: var(--col-hdcp); }
+.round-card .score-table col.col-hole{ width: var(--col-hole); }
+/* Optional if you have these classes in your colgroup */
+.round-card .score-table col.col-outin{ width: var(--col-outin); }
+.round-card .score-table col.col-total{ width: var(--col-total); }
+
+/* Cells */
 .round-card .score-table th,
 .round-card .score-table td{
-  padding: .42rem .45rem;
+  padding: .34rem .35rem;
+  font-size: .82rem;
   white-space: nowrap;
+  border-bottom: 1px solid rgba(148,163,184,.16);
+  text-align: center;
+}
+
+/* Header styling */
+.round-card .score-table th{
+  background: linear-gradient(180deg, rgba(5,150,105,.12), rgba(5,150,105,.06));
+  font-weight: 800;
+  color:#065f46;
 }
 
 /* Sticky header */
@@ -370,16 +308,18 @@ footer{
   position: sticky;
   top: 0;
   z-index: 6;
-  background: linear-gradient(180deg, rgba(5,150,105,.10), rgba(5,150,105,.06));
 }
 
-/* Sticky LEFT columns: Player + Hdcp */
+/* Sticky LEFT: Player + Hdcp (works even if you don’t add special classes) */
 .round-card .table-scroll th:nth-child(1),
 .round-card .table-scroll td:nth-child(1){
   position: sticky;
   left: 0;
   z-index: 7;
-  background: rgba(255,255,255,.98);
+  background: rgba(255,255,255,.985);
+  text-align: left;
+  padding-left: .6rem;
+  font-weight: 800;
 }
 
 .round-card .table-scroll th:nth-child(2),
@@ -387,105 +327,102 @@ footer{
   position: sticky;
   left: var(--col-player);
   z-index: 7;
-  background: rgba(255,255,255,.98);
+  background: rgba(255,255,255,.985);
   box-shadow: 8px 0 0 rgba(148,163,184,.14);
 }
 
-/* Sticky RIGHT totals: Out / In / Gross / Net
-   These are the LAST 4 columns in your table. */
+/* Sticky RIGHT totals (LAST 4 columns) — if your table ends with Out/In/Gross/Net */
 .round-card .table-scroll th:nth-last-child(1),
 .round-card .table-scroll td:nth-last-child(1){
   position: sticky;
   right: 0;
   z-index: 7;
-  background: rgba(255,255,255,.98);
+  background: rgba(255,255,255,.985);
+  font-weight: 900;
 }
 
 .round-card .table-scroll th:nth-last-child(2),
 .round-card .table-scroll td:nth-last-child(2){
   position: sticky;
-  right: 70px;
+  right: var(--col-total);
   z-index: 7;
-  background: rgba(255,255,255,.98);
+  background: rgba(255,255,255,.985);
+  font-weight: 900;
 }
 
 .round-card .table-scroll th:nth-last-child(3),
 .round-card .table-scroll td:nth-last-child(3){
   position: sticky;
-  right: 140px;
+  right: calc(var(--col-total) + var(--col-outin));
   z-index: 7;
-  background: rgba(255,255,255,.98);
+  background: rgba(255,255,255,.985);
+  font-weight: 900;
 }
 
 .round-card .table-scroll th:nth-last-child(4),
 .round-card .table-scroll td:nth-last-child(4){
   position: sticky;
-  right: 196px; /* 140 + 56 (Out/In col) */
+  right: calc(var(--col-total) + var(--col-outin) + var(--col-outin));
   z-index: 7;
-  background: rgba(255,255,255,.98);
+  background: rgba(255,255,255,.985);
   box-shadow: -8px 0 0 rgba(148,163,184,.14);
+  font-weight: 900;
 }
 
-/* Make score inputs consistent */
-.round-card td input.score-input{
-  width: 42px;
+/* Inputs */
+.round-card td input{
+  width: 100%;
+  max-width: var(--col-hole);
+  height: 30px;
   text-align: center;
+  padding: .25rem .2rem;
+  border-radius: 10px;
+  font-weight: 800;
+}
+.round-card td input.score-input{
+  width: var(--col-hole);
+  max-width: var(--col-hole);
 }
 
-/* Optional: reduce visual noise in sticky cells */
+.round-card .handicap-input{
+  max-width: 54px;
+  text-align:center;
+}
+
+/* Slightly reduce borders in sticky zones to feel cleaner */
 .round-card .table-scroll td:nth-child(1),
 .round-card .table-scroll td:nth-child(2),
 .round-card .table-scroll td:nth-last-child(-n+4){
-  background: rgba(255,255,255,.985);
+  background: rgba(255,255,255,.992);
 }
+
 /* ===========================
-   SCORE GRID: FIT ON DESKTOP
+   FOOTER
    =========================== */
-
-/* tighter columns so 18 holes fit without scrolling on typical desktop widths */
-:root{
-  --col-player: 140px;
-  --col-hdcp: 56px;
-  --col-hole: 30px;
-  --col-outin: 44px;
-  --col-total: 56px;
+footer{
+  text-align:right;
+  font-size:.75rem;
+  color: var(--muted);
+  margin-top:1rem;
 }
 
-/* Desktop: remove horizontal scroll, let table fit inside */
+/* ===========================
+   MOBILE
+   =========================== */
+@media (max-width: 640px){
+  main{ padding: 1rem; }
+  header{ text-align:center; }
+}
+
+/* ===========================
+   DENSER TABLE OPTION (helps fit more often)
+   =========================== */
 @media (min-width: 1100px){
-  .round-card .table-scroll{
-    overflow-x: visible !important;
+  :root{
+    --col-player: 140px;
+    --col-hdcp: 56px;
+    --col-hole: 32px;
+    --col-outin: 44px;
+    --col-total: 56px;
   }
-  .round-card .score-table{
-    width: 100% !important;
-    min-width: 0 !important;
-  }
-}
-
-/* Small screens: keep safe scroll */
-@media (max-width: 1099px){
-  .round-card .table-scroll{
-    overflow-x: auto !important;
-  }
-}
-
-/* Tighter cells */
-.round-card .score-table th,
-.round-card .score-table td{
-  padding: .32rem .35rem;
-  font-size: .82rem;
-}
-
-/* Compact score inputs */
-.round-card td input.score-input{
-  width: 28px;
-  max-width: 28px;
-  padding: .25rem .2rem;
-  text-align: center;
-}
-
-/* Compact handicap */
-.round-card .handicap-input{
-  max-width: 48px;
-  text-align:center;
 }
