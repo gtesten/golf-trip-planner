@@ -44,8 +44,8 @@ export function renderPairingsFromModel(model) {
   incoming.rounds = Array.isArray(incoming.rounds) ? incoming.rounds : [];
   incoming.players = Array.isArray(incoming.players) ? incoming.players : [];
 
-  // If textarea already has players, treat textarea as source of truth.
-  // If textarea is empty but model has players, populate textarea from model.
+  // Textarea is source-of-truth if it has content.
+  // If textarea empty but model has players, populate textarea.
   const textareaPlayers = getPlayersFromTextarea();
   let playersList = textareaPlayers;
 
@@ -54,9 +54,7 @@ export function renderPairingsFromModel(model) {
     playersList = incoming.players.slice();
   }
 
-  // If still empty, just render an empty state (no rounds)
-  // But DO NOT force-clear textarea.
-  // Ensure at least one round if players exist (so table shows immediately)
+  // If players exist but no rounds, create one empty round so the scorecard appears immediately
   if (playersList.length > 0 && incoming.rounds.length === 0) {
     incoming.rounds = [createEmptyRound(playersList)];
   }
@@ -115,6 +113,16 @@ export function createRoundCard(round = {}, playersList = []) {
   groupsWrap.style.color = 'rgba(51,65,85,.95)';
   card.appendChild(groupsWrap);
 
+  // Front/Back toggle UI
+  const toggle = document.createElement('div');
+  toggle.className = 'holes-toggle';
+  toggle.innerHTML = `
+    <button type="button" data-view="front" class="is-active">Front 9</button>
+    <button type="button" data-view="back">Back 9</button>
+    <button type="button" data-view="all">All</button>
+  `;
+  card.appendChild(toggle);
+
   // Scores table wrapper
   const scroll = document.createElement('div');
   scroll.className = 'table-scroll';
@@ -131,21 +139,33 @@ export function createRoundCard(round = {}, playersList = []) {
   // Initial groups render
   renderGroupsUI(card, groupsWrap);
 
+  // Default view: Front 9
+  setHolesView(card, 'front');
+
+  // Toggle wiring
+  toggle.addEventListener('click', (e) => {
+    const btn = e.target?.closest?.('button[data-view]');
+    if (!btn) return;
+
+    toggle.querySelectorAll('button').forEach((b) => b.classList.remove('is-active'));
+    btn.classList.add('is-active');
+
+    const view = btn.getAttribute('data-view') || 'front';
+    setHolesView(card, view);
+  });
+
   // Wire actions
-  const btnRemove = header.querySelector('.remove-round');
-  btnRemove?.addEventListener('click', () => {
+  header.querySelector('.remove-round')?.addEventListener('click', () => {
     card.remove();
   });
 
-  const btnAuto = header.querySelector('.auto-foursomes');
-  btnAuto?.addEventListener('click', () => {
+  header.querySelector('.auto-foursomes')?.addEventListener('click', () => {
     const groups = makeFoursomes(players);
     card.dataset.groups = JSON.stringify(groups);
     renderGroupsUI(card, groupsWrap);
   });
 
-  const btnClear = header.querySelector('.clear-scores');
-  btnClear?.addEventListener('click', () => {
+  header.querySelector('.clear-scores')?.addEventListener('click', () => {
     table.querySelectorAll('input.score-input').forEach((inp) => (inp.value = ''));
     recomputeAllTotals(table);
   });
@@ -204,7 +224,6 @@ export function getPairingsModelFromDOM() {
 
         // Ensure exactly 18
         const fixedHoles = Array.from({ length: 18 }, (_, i) => holes[i] ?? '');
-
         scoreRows.push({ player, hdcp, holes: fixedHoles });
       });
     }
@@ -220,6 +239,24 @@ export function getPairingsModelFromDOM() {
 /* ---------------------------
    Helpers
 --------------------------- */
+
+function setHolesView(card, view) {
+  const showAll = view === 'all';
+  const showFront = view === 'front';
+  const showBack = view === 'back';
+
+  card.querySelectorAll('[data-hole]').forEach((el) => {
+    const h = Number(el.getAttribute('data-hole'));
+    const isFront = h >= 1 && h <= 9;
+    const isBack = h >= 10 && h <= 18;
+
+    el.style.display =
+      showAll ? '' :
+      showFront ? (isFront ? '' : 'none') :
+      showBack ? (isBack ? '' : 'none') :
+      '';
+  });
+}
 
 function createEmptyRound(players) {
   return {
@@ -275,6 +312,7 @@ function buildScoreTableHead() {
   for (let i = 1; i <= 18; i += 1) {
     const th = document.createElement('th');
     th.textContent = String(i);
+    th.dataset.hole = String(i); // for Front/Back toggle
     tr.appendChild(th);
   }
 
@@ -321,11 +359,14 @@ function buildScoreTableBody(round, players) {
     const holes = Array.isArray(s.holes) ? s.holes : [];
     for (let i = 0; i < 18; i += 1) {
       const td = document.createElement('td');
+      td.dataset.hole = String(i + 1); // for Front/Back toggle
+
       const inp = document.createElement('input');
       inp.type = 'text';
       inp.inputMode = 'numeric';
       inp.className = 'score-input';
       inp.value = holes[i] ?? '';
+
       td.appendChild(inp);
       tr.appendChild(td);
     }
