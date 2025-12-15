@@ -490,6 +490,35 @@ textarea{ resize: vertical; }
   color: rgba(5,150,105,1);
 }
 
+/* =========================================================
+   Visual separator between Front 9 and Back 9
+   ========================================================= */
+
+/* A vertical divider after Hole 9 */
+.round-card .score-table th[data-hole="9"],
+.round-card .score-table td[data-hole="9"]{
+  border-right: 2px solid rgba(148,163,184,.35);
+  box-shadow: 6px 0 0 rgba(148,163,184,.10);
+}
+
+/* Optional: slightly tint Back 9 header cells */
+.round-card .score-table thead th[data-hole="10"],
+.round-card .score-table thead th[data-hole="11"],
+.round-card .score-table thead th[data-hole="12"],
+.round-card .score-table thead th[data-hole="13"],
+.round-card .score-table thead th[data-hole="14"],
+.round-card .score-table thead th[data-hole="15"],
+.round-card .score-table thead th[data-hole="16"],
+.round-card .score-table thead th[data-hole="17"],
+.round-card .score-table thead th[data-hole="18"]{
+  background: rgba(240,253,244,.78) !important;
+}
+
+.round-card .score-table th:nth-child(2),
+.round-card .score-table td:nth-child(2){
+  box-shadow: 10px 0 0 rgba(148,163,184,.12);
+}
+
 /* ===========================
    GRID / FLEX SHRINK FIX
    =========================== */
