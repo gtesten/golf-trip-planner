@@ -115,18 +115,10 @@ export function createRoundCard(round = {}, playersList = []) {
   table.className = 'score-table';
 
  const pars = getParsFromCard(card);
-const si = getStrokeIndexFromCard(card);
+  const si = getStrokeIndexFromCard(card);
 
   table.appendChild(buildScoreTableHead());
-const pars = getParsFromCard(card);       // returns array[18]
-const si = getStrokeIndexFromCard(card);  // returns array[18]
-
-table.appendChild(buildScoreTableBody(round, players, pars, si));
-
-
-
-  scroll.appendChild(table);
-  card.appendChild(scroll);
+  table.appendChild(buildScoreTableBody(round, players, pars, si));
 
   renderGroupsUI(card, groupsWrap);
 
@@ -502,7 +494,25 @@ function buildScoreTableBody(round, players, pars = [], strokeIndex = []) {
       inp.value = holes[i] ?? '';
 
       td.appendChild(inp);
+      tr.appendChild(td);
+    }
 
+    // Totals
+    ['Out', 'In', 'Gross', 'Net'].forEach((label, idx) => {
+      const td = document.createElement('td');
+      td.className = 'tot-col';
+      if (idx === 0) td.className += ' tot-out';
+      else if (idx === 1) td.className += ' tot-in';
+      else if (idx === 2) td.className += ' tot-gross';
+      else if (idx === 3) td.className += ' tot-net';
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  return tbody;
+}
 
 function renderGroupsUI(card, wrapEl) {
   let groups = [];
