@@ -363,37 +363,56 @@
 
       <!-- Pairings & Scores (structured) -->
       <div class="tab-panel" id="pairingsTab">
-        <div class="stack">
-          <div>
-            <div class="section-bar">
-              <div class="section-title">Players</div>
-            </div>
-            <label for="playersInput">Players (one per line)</label>
-            <textarea
-              id="playersInput"
-              placeholder="Glenn
-Mike
-Dave
-Chris"
-            ></textarea>
-            <div class="hint">
-              This list is used to auto-fill score rows for each round.
-            </div>
-          </div>
 
-          <div>
-            <div class="section-bar">
-              <div class="section-title">Rounds &amp; Scores</div>
-              <button id="addRoundBtn" class="small">➕ Add Round</button>
-            </div>
-            <div id="roundsContainer"></div>
-          </div>
+  <div class="pairings-shell">
+
+    <!-- Left: Players -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Players</div>
+          <div class="panel-sub">One per line. This drives score rows for every round.</div>
         </div>
-
-        <!-- Hidden storage for JSON, used when saving/loading -->
-        <textarea id="pairingsData" style="display:none;"></textarea>
       </div>
 
+      <label for="playersInput" class="sr-only">Players</label>
+      <textarea
+        id="playersInput"
+        placeholder="Glenn&#10;Mike&#10;Dave&#10;Chris"
+      ></textarea>
+
+      <div class="panel-foot">
+        <div class="hint">
+          Tip: Keep names consistent (no nicknames) so totals stay clean across rounds.
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: Rounds -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Rounds & Scores</div>
+          <div class="panel-sub">Add rounds, then enter hole scores per player.</div>
+        </div>
+
+        <div class="panel-actions">
+          <button id="addRoundBtn" class="small">➕ Add Round</button>
+        </div>
+      </div>
+
+      <div id="roundsContainer"></div>
+
+      <div class="panel-foot">
+        <div class="hint">Scroll inside a round to see all holes. Player + Hdcp stay pinned.</div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Hidden storage for JSON, used when saving/loading -->
+  <textarea id="pairingsData" style="display:none;"></textarea>
+</div>
       <!-- Expenses & Docs -->
       <div class="tab-panel" id="expensesTab">
         <label for="expensesData">Expenses &amp; Docs</label>
