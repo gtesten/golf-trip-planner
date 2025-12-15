@@ -371,6 +371,54 @@ textarea{ resize: vertical; }
   max-width: 54px !important;
 }
 
+/* =========================================================
+   HARD FIX: Sticky + overflow + table paint bugs (Chrome/Safari)
+   Stops score inputs from bleeding into sticky Player/Hdcp cells.
+   ========================================================= */
+
+/* Force a new stacking context for the scroller */
+.round-card .table-scroll{
+  position: relative;
+  isolation: isolate;              /* key */
+  transform: translateZ(0);        /* key (compositor) */
+  contain: paint;                  /* helps prevent bleed */
+}
+
+/* Ensure non-sticky cells stay "under" sticky ones */
+.round-card .score-table td,
+.round-card .score-table th{
+  position: relative;
+  z-index: 1;
+}
+
+/* Make sticky columns an actual opaque layer */
+.round-card .score-table td:nth-child(1),
+.round-card .score-table th:nth-child(1),
+.round-card .score-table td:nth-child(2),
+.round-card .score-table th:nth-child(2){
+  z-index: 50;
+  background: #fff !important;     /* force paint over zebra */
+  background-clip: padding-box;
+}
+
+/* Header always above everything */
+.round-card .score-table thead th{
+  z-index: 60;
+  background: #f0fdf4 !important;
+}
+
+/* Intersection (header + sticky left) must be topmost */
+.round-card .score-table thead th:nth-child(1),
+.round-card .score-table thead th:nth-child(2){
+  z-index: 70;
+}
+
+/* Optional: add an "edge" so you visually see the sticky boundary */
+.round-card .score-table td:nth-child(2),
+.round-card .score-table th:nth-child(2){
+  box-shadow: 10px 0 0 rgba(148,163,184,.12);
+}
+
 /* ===========================
    GRID / FLEX SHRINK FIX
    =========================== */
