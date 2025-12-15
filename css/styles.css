@@ -674,6 +674,30 @@ textarea{ resize: vertical; }
   background: rgba(254,202,202,.65) !important; /* red */
 }
 
+/* Meta rows (Par / SI) inside tbody */
+.round-card .score-table tbody tr.meta-row td{
+  background: rgba(248,250,252,.92) !important;
+}
+
+.round-card .score-table tbody tr.meta-row td.meta-label{
+  font-weight: 900;
+  text-align: left;
+  padding-left: 12px;
+}
+
+/* Make Par/SI inputs match score boxes */
+.round-card .score-table input.par-input,
+.round-card .score-table input.si-input{
+  width: 30px;
+  height: 24px;
+  padding: 0;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 900;
+  border: 1px solid rgba(148,163,184,.30);
+  background: rgba(255,255,255,.95);
+}
+
 /* ===========================
    FOOTER
    =========================== */

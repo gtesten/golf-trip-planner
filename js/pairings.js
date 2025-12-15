@@ -114,8 +114,16 @@ export function createRoundCard(round = {}, playersList = []) {
   const table = document.createElement('table');
   table.className = 'score-table';
 
-  table.appendChild(buildScoreTableHead(getParsFromCard(card), getStrokeIndexFromCard(card)));
-  table.appendChild(buildScoreTableBody(r, players));
+ const pars = getParsFromCard(card);
+const si = getStrokeIndexFromCard(card);
+
+  table.appendChild(buildScoreTableHead());
+const pars = getParsFromCard(card);       // returns array[18]
+const si = getStrokeIndexFromCard(card);  // returns array[18]
+
+table.appendChild(buildScoreTableBody(round, players, pars, si));
+
+
 
   scroll.appendChild(table);
   card.appendChild(scroll);
@@ -274,6 +282,44 @@ function updateGroupHeaderLabels(card, view) {
   }
 }
 
+function buildMetaRow(label, values, inputClass) {
+  const tr = document.createElement('tr');
+  tr.className = 'meta-row';
+  tr.dataset.meta = label.toLowerCase();
+
+  const tdLabel = document.createElement('td');
+  tdLabel.className = 'meta-label';
+  tdLabel.textContent = label;
+  tr.appendChild(tdLabel);
+
+  const tdBlank = document.createElement('td');
+  tdBlank.textContent = '';
+  tr.appendChild(tdBlank);
+
+  for (let i = 1; i <= 18; i += 1) {
+    const td = document.createElement('td');
+    td.dataset.hole = String(i);
+
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.inputMode = 'numeric';
+    inp.className = inputClass;
+    inp.value = String(Number(values?.[i - 1] ?? 0) || '');
+    td.appendChild(inp);
+
+    tr.appendChild(td);
+  }
+
+  // totals blanks
+  for (let j = 0; j < 4; j += 1) {
+    const td = document.createElement('td');
+    td.className = 'tot-col';
+    tr.appendChild(td);
+  }
+
+  return tr;
+}
+
 function setHolesView(card, view) {
   updateGroupHeaderLabels(card, view);
 
@@ -347,17 +393,16 @@ function normalizeRound(round, players) {
  * Row 3: Par inputs
  * Row 4: SI inputs (stroke index)
  */
-function buildScoreTableHead(pars, strokeIndex) {
+function buildScoreTableHead() {
   const thead = document.createElement('thead');
 
-  // --- Row 1: group labels (leave 2 empty cells for Player/Hdcp area)
+  // Row 1: group labels
   const trGroup = document.createElement('tr');
 
-  const thBlank1 = document.createElement('th');
-  thBlank1.colSpan = 2;
-  thBlank1.className = 'sticky-left-head';
-  thBlank1.textContent = '';
-  trGroup.appendChild(thBlank1);
+  const thBlank = document.createElement('th');
+  thBlank.colSpan = 2;
+  thBlank.className = 'sticky-left-head';
+  trGroup.appendChild(thBlank);
 
   const thFront = document.createElement('th');
   thFront.colSpan = 9;
@@ -379,131 +424,72 @@ function buildScoreTableHead(pars, strokeIndex) {
 
   thead.appendChild(trGroup);
 
-  // --- Row 2: column headers (Player/Hdcp + holes + totals)
-  const trHoles = document.createElement('tr');
+  // Row 2: hole numbers + totals
+  const tr = document.createElement('tr');
 
   const thPlayer = document.createElement('th');
   thPlayer.textContent = 'Player';
-  trHoles.appendChild(thPlayer);
+  tr.appendChild(thPlayer);
 
   const thHdcp = document.createElement('th');
   thHdcp.textContent = 'Hdcp';
-  trHoles.appendChild(thHdcp);
+  tr.appendChild(thHdcp);
 
   for (let i = 1; i <= 18; i += 1) {
     const th = document.createElement('th');
     th.textContent = String(i);
     th.dataset.hole = String(i);
-    trHoles.appendChild(th);
+    tr.appendChild(th);
   }
 
   ['Out', 'In', 'Gross', 'Net'].forEach((label) => {
     const th = document.createElement('th');
     th.textContent = label;
     th.className = 'tot-col';
-    trHoles.appendChild(th);
+    tr.appendChild(th);
   });
 
-  thead.appendChild(trHoles);
-
-  // --- Row 3: Par row (label at left + par inputs)
-  const trPar = document.createElement('tr');
-  trPar.className = 'par-row';
-
-  const thParLabel = document.createElement('th');
-  thParLabel.colSpan = 2;
-  thParLabel.className = 'meta-label sticky-left-meta';
-  thParLabel.textContent = 'Par';
-  trPar.appendChild(thParLabel);
-
-  for (let i = 1; i <= 18; i += 1) {
-    const th = document.createElement('th');
-    th.dataset.hole = String(i);
-
-    const inp = document.createElement('input');
-    inp.type = 'number';
-    inp.inputMode = 'numeric';
-    inp.className = 'par-input';
-    inp.value = String(toNumber(pars[i - 1] ?? 0) || '');
-    inp.title = `Par for hole ${i}`;
-    th.appendChild(inp);
-
-    trPar.appendChild(th);
-  }
-
-  for (let j = 0; j < 4; j += 1) {
-    const th = document.createElement('th');
-    th.className = 'tot-col';
-    trPar.appendChild(th);
-  }
-
-  thead.appendChild(trPar);
-
-  // --- Row 4: Stroke Index row (label at left + SI inputs)
-  const trSi = document.createElement('tr');
-  trSi.className = 'si-row';
-
-  const thSiLabel = document.createElement('th');
-  thSiLabel.colSpan = 2;
-  thSiLabel.className = 'meta-label sticky-left-meta';
-  thSiLabel.textContent = 'SI';
-  trSi.appendChild(thSiLabel);
-
-  for (let i = 1; i <= 18; i += 1) {
-    const th = document.createElement('th');
-    th.dataset.hole = String(i);
-
-    const inp = document.createElement('input');
-    inp.type = 'number';
-    inp.inputMode = 'numeric';
-    inp.className = 'si-input';
-    inp.value = String(toNumber(strokeIndex[i - 1] ?? 0) || '');
-    inp.title = `Stroke index for hole ${i}`;
-    th.appendChild(inp);
-
-    trSi.appendChild(th);
-  }
-
-  for (let j = 0; j < 4; j += 1) {
-    const th = document.createElement('th');
-    th.className = 'tot-col';
-    trSi.appendChild(th);
-  }
-
-  thead.appendChild(trSi);
-
+  thead.appendChild(tr);
   return thead;
 }
 
-function buildScoreTableBody(round, players) {
+function buildScoreTableBody(round, players, pars = [], strokeIndex = []) {
   const tbody = document.createElement('tbody');
   const scores = Array.isArray(round?.scores) ? round.scores : [];
   const byPlayer = new Map(scores.map((s) => [s?.player, s]));
 
+  // --- Par row
+  tbody.appendChild(buildMetaRow('Par', pars, 'par-input'));
+
+  // --- Stroke Index row
+  tbody.appendChild(buildMetaRow('SI', strokeIndex, 'si-input'));
+
   players.forEach((p) => {
-    const s = byPlayer.get(p) || { player: p, hdcp: 0, holes: Array(18).fill('') };
+    const s = byPlayer.get(p) || {
+      player: p,
+      hdcp: 0,
+      holes: Array(18).fill('')
+    };
 
     const tr = document.createElement('tr');
-    tr.setAttribute('data-player', p);
+    tr.dataset.player = p;
 
-    // Player cell
+    // Player
     const tdPlayer = document.createElement('td');
     tdPlayer.textContent = p;
     tr.appendChild(tdPlayer);
 
-    // Handicap input
+    // Handicap
     const tdHdcp = document.createElement('td');
     const hdcp = document.createElement('input');
     hdcp.type = 'number';
     hdcp.inputMode = 'numeric';
     hdcp.className = 'handicap-input';
     hdcp.value = String(toNumber(s.hdcp ?? 0));
-    hdcp.style.width = '54px';
-    hdcp.style.textAlign = 'center';
     tdHdcp.appendChild(hdcp);
     tr.appendChild(tdHdcp);
 
-    // 18 holes
+    // Holes 1–18
     const holes = Array.isArray(s.holes) ? s.holes : [];
     for (let i = 0; i < 18; i += 1) {
       const td = document.createElement('td');
@@ -516,40 +502,7 @@ function buildScoreTableBody(round, players) {
       inp.value = holes[i] ?? '';
 
       td.appendChild(inp);
-      tr.appendChild(td);
-    }
 
-    // Totals cells
-    const tdOut = document.createElement('td');
-    tdOut.className = 'tot-out';
-    tr.appendChild(tdOut);
-
-    const tdIn = document.createElement('td');
-    tdIn.className = 'tot-in';
-    tr.appendChild(tdIn);
-
-    const tdGross = document.createElement('td');
-    tdGross.className = 'tot-gross';
-    tr.appendChild(tdGross);
-
-    const tdNet = document.createElement('td');
-    tdNet.className = 'tot-net';
-    tr.appendChild(tdNet);
-
-    tbody.appendChild(tr);
-  });
-
-  return tbody;
-}
-
-function makeFoursomes(players) {
-  const list = players.slice();
-  const groups = [];
-  for (let i = 0; i < list.length; i += 4) {
-    groups.push(list.slice(i, i + 4));
-  }
-  return groups;
-}
 
 function renderGroupsUI(card, wrapEl) {
   let groups = [];
