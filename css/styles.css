@@ -235,6 +235,30 @@ button.secondary{
 }
 
 /* ===========================
+   SCORE TABLE INPUTS
+   =========================== */
+
+.score-input{
+  width: 32px;
+  height: 30px;
+  text-align: center;
+  border-radius: 8px;
+  border: 1px solid rgba(148,163,184,.35);
+  background: #fff;
+}
+
+/* PAR (course setup) inputs */
+.par-input{
+  width: 38px;
+  height: 32px;
+  font-weight: 700;
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid rgba(148,163,184,.45);
+  border-radius: 8px;
+}
+
+/* ===========================
    META ROWS (PAR / SI)
    =========================== */
 .meta-row td{
@@ -251,4 +275,37 @@ button.secondary{
    =========================== */
 @media (max-width: 768px){
   main{ padding:1rem; }
+}
+/* ===========================
+   Score table: Front/Back shading
+   =========================== */
+
+/* Hole cell tints */
+.score-table th.hole-front,
+.score-table td.hole-front{
+  background: rgba(5,150,105,.045);
+}
+
+.score-table th.hole-back,
+.score-table td.hole-back{
+  background: rgba(2,132,199,.045);
+}
+
+/* Keep meta rows slightly different (Par / SI) */
+.score-table tr.meta-row td.hole-front,
+.score-table tr.meta-row td.hole-back{
+  background: rgba(148,163,184,.10);
+}
+
+/* Ensure sticky Player/Hdcp stay solid */
+.score-table td:nth-child(1),
+.score-table td:nth-child(2),
+.score-table th:nth-child(1),
+.score-table th:nth-child(2){
+  background: #fff !important;
+}
+
+/* Totals columns get their own look */
+.score-table .tot-col{
+  background: rgba(5,150,105,.08);
 }
