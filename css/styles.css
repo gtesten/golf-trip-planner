@@ -328,48 +328,52 @@ footer{
   min-height: 260px;
 }
 
-/* ===== Score table scroll: make the scrollbar behave correctly ===== */
+/* ===========================
+   Score tables: scroll + sticky left + sticky right totals
+   =========================== */
+
+/* Keep overflow contained inside cards */
+.round-card{ overflow: hidden; }
 
 /* Scroll boundary */
 .round-card .table-scroll{
+  width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  width: 100%;
-  max-width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(148,163,184,.25);
+  background: rgba(255,255,255,.98);
   position: relative;
 }
 
-/* Give the table a true scroll width (so the slider works) */
-:root{
-  --col-player: 160px;
-  --col-hdcp: 64px;
-  --col-hole: 44px;
-  --col-outin: 56px;
-  --col-total: 70px;
+/* Improve scroll UX: a little padding so first/last cols aren't flush */
+.round-card .table-scroll{
+  padding-bottom: 2px;
 }
 
+/* deterministic sizing */
 .round-card .score-table{
+  width: 100%;
   table-layout: fixed;
-  width: max-content;   /* ✅ creates real horizontal scroll */
-  min-width: 100%;      /* ✅ but never smaller than the card */
 }
 
-/* colgroup widths (must exist in your table markup) */
-.round-card .score-table col.col-player{ width: var(--col-player); }
-.round-card .score-table col.col-hdcp{ width: var(--col-hdcp); }
-.round-card .score-table col.col-hole{ width: var(--col-hole); }
-.round-card .score-table col.col-outin{ width: var(--col-outin); }
-.round-card .score-table col.col-total{ width: var(--col-total); }
+/* tighter cell sizing */
+.round-card .score-table th,
+.round-card .score-table td{
+  padding: .42rem .45rem;
+  white-space: nowrap;
+}
 
 /* Sticky header */
 .round-card .table-scroll thead th{
   position: sticky;
   top: 0;
   z-index: 6;
+  background: linear-gradient(180deg, rgba(5,150,105,.10), rgba(5,150,105,.06));
 }
 
-/* Sticky left columns */
+/* Sticky LEFT columns: Player + Hdcp */
 .round-card .table-scroll th:nth-child(1),
 .round-card .table-scroll td:nth-child(1){
   position: sticky;
@@ -377,6 +381,7 @@ footer{
   z-index: 7;
   background: rgba(255,255,255,.98);
 }
+
 .round-card .table-scroll th:nth-child(2),
 .round-card .table-scroll td:nth-child(2){
   position: sticky;
@@ -386,26 +391,36 @@ footer{
   box-shadow: 8px 0 0 rgba(148,163,184,.14);
 }
 
-/* Sticky RIGHT totals (last 4 columns) */
+/* Sticky RIGHT totals: Out / In / Gross / Net
+   These are the LAST 4 columns in your table. */
 .round-card .table-scroll th:nth-last-child(1),
 .round-card .table-scroll td:nth-last-child(1){
-  position: sticky; right: 0;
-  z-index: 7; background: rgba(255,255,255,.98);
+  position: sticky;
+  right: 0;
+  z-index: 7;
+  background: rgba(255,255,255,.98);
 }
+
 .round-card .table-scroll th:nth-last-child(2),
 .round-card .table-scroll td:nth-last-child(2){
-  position: sticky; right: var(--col-total);
-  z-index: 7; background: rgba(255,255,255,.98);
+  position: sticky;
+  right: 70px;
+  z-index: 7;
+  background: rgba(255,255,255,.98);
 }
+
 .round-card .table-scroll th:nth-last-child(3),
 .round-card .table-scroll td:nth-last-child(3){
-  position: sticky; right: calc(var(--col-total) * 2);
-  z-index: 7; background: rgba(255,255,255,.98);
+  position: sticky;
+  right: 140px;
+  z-index: 7;
+  background: rgba(255,255,255,.98);
 }
+
 .round-card .table-scroll th:nth-last-child(4),
 .round-card .table-scroll td:nth-last-child(4){
   position: sticky;
-  right: calc((var(--col-total) * 2) + var(--col-outin));
+  right: 196px; /* 140 + 56 (Out/In col) */
   z-index: 7;
   background: rgba(255,255,255,.98);
   box-shadow: -8px 0 0 rgba(148,163,184,.14);
