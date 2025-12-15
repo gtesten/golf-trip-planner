@@ -285,24 +285,53 @@ textarea{ resize: vertical; }
   box-shadow: 8px 0 0 rgba(148,163,184,.12);
 }
 
-/* Hole columns: fixed width so inputs don't drift */
-.round-card .score-table th:nth-child(n+3),
-.round-card .score-table td:nth-child(n+3){
+/* =========================================================
+   FIXED COLUMN WIDTHS (data-driven, header-safe)
+   ========================================================= */
+
+/* Hole columns (1–18) */
+.round-card .score-table th[data-hole],
+.round-card .score-table td[data-hole]{
   min-width: var(--col-hole);
   width: var(--col-hole);
+  max-width: var(--col-hole);
+  text-align: center;
 }
 
-/* Totals at the end (Out / In / Gross / Net) */
-.round-card .score-table th:nth-last-child(-n+4),
+/* Totals columns (Out / In / Gross / Net) */
+.round-card .score-table th.tot-col,
 .round-card .score-table td:nth-last-child(-n+4){
   min-width: var(--col-total);
   width: var(--col-total);
+  max-width: var(--col-total);
+  font-weight: 900;
 }
 
-/* Sticky header must be above sticky body cells */
+/* Sticky header layering (above sticky body cells) */
 .round-card .score-table thead th{
-  z-index: 40;
+  position: sticky;
+  top: 0;
+  z-index: 70;
   background: #f0fdf4;
+}
+
+/* Keep Par / SI labels visible on the left */
+.round-card .score-table th.sticky-left-meta{
+  position: sticky;
+  left: 0;
+  z-index: 75;
+  background: rgba(248,250,252,.98) !important;
+  text-align: left;
+  padding-left: 12px;
+  font-weight: 900;
+}
+
+/* Left spacer in group header row */
+.round-card .score-table th.sticky-left-head{
+  position: sticky;
+  left: 0;
+  z-index: 75;
+  background: rgba(226,232,240,.75) !important;
 }
 
 /* =========================================================

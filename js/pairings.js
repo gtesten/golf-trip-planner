@@ -350,18 +350,14 @@ function normalizeRound(round, players) {
 function buildScoreTableHead(pars, strokeIndex) {
   const thead = document.createElement('thead');
 
-  // --- Row 1: group labels
+  // --- Row 1: group labels (leave 2 empty cells for Player/Hdcp area)
   const trGroup = document.createElement('tr');
 
-  const thPlayerGroup = document.createElement('th');
-  thPlayerGroup.rowSpan = 4;
-  thPlayerGroup.textContent = 'Player';
-  trGroup.appendChild(thPlayerGroup);
-
-  const thHdcpGroup = document.createElement('th');
-  thHdcpGroup.rowSpan = 4;
-  thHdcpGroup.textContent = 'Hdcp';
-  trGroup.appendChild(thHdcpGroup);
+  const thBlank1 = document.createElement('th');
+  thBlank1.colSpan = 2;
+  thBlank1.className = 'sticky-left-head';
+  thBlank1.textContent = '';
+  trGroup.appendChild(thBlank1);
 
   const thFront = document.createElement('th');
   thFront.colSpan = 9;
@@ -383,24 +379,42 @@ function buildScoreTableHead(pars, strokeIndex) {
 
   thead.appendChild(trGroup);
 
-  // --- Row 2: hole numbers + totals labels
+  // --- Row 2: column headers (Player/Hdcp + holes + totals)
   const trHoles = document.createElement('tr');
+
+  const thPlayer = document.createElement('th');
+  thPlayer.textContent = 'Player';
+  trHoles.appendChild(thPlayer);
+
+  const thHdcp = document.createElement('th');
+  thHdcp.textContent = 'Hdcp';
+  trHoles.appendChild(thHdcp);
+
   for (let i = 1; i <= 18; i += 1) {
     const th = document.createElement('th');
     th.textContent = String(i);
     th.dataset.hole = String(i);
     trHoles.appendChild(th);
   }
+
   ['Out', 'In', 'Gross', 'Net'].forEach((label) => {
     const th = document.createElement('th');
     th.textContent = label;
+    th.className = 'tot-col';
     trHoles.appendChild(th);
   });
+
   thead.appendChild(trHoles);
 
-  // --- Row 3: Par inputs
+  // --- Row 3: Par row (label at left + par inputs)
   const trPar = document.createElement('tr');
   trPar.className = 'par-row';
+
+  const thParLabel = document.createElement('th');
+  thParLabel.colSpan = 2;
+  thParLabel.className = 'meta-label sticky-left-meta';
+  thParLabel.textContent = 'Par';
+  trPar.appendChild(thParLabel);
 
   for (let i = 1; i <= 18; i += 1) {
     const th = document.createElement('th');
@@ -417,17 +431,23 @@ function buildScoreTableHead(pars, strokeIndex) {
     trPar.appendChild(th);
   }
 
-  // blanks under totals
   for (let j = 0; j < 4; j += 1) {
     const th = document.createElement('th');
-    th.textContent = '';
+    th.className = 'tot-col';
     trPar.appendChild(th);
   }
+
   thead.appendChild(trPar);
 
-  // --- Row 4: Stroke Index inputs
+  // --- Row 4: Stroke Index row (label at left + SI inputs)
   const trSi = document.createElement('tr');
   trSi.className = 'si-row';
+
+  const thSiLabel = document.createElement('th');
+  thSiLabel.colSpan = 2;
+  thSiLabel.className = 'meta-label sticky-left-meta';
+  thSiLabel.textContent = 'SI';
+  trSi.appendChild(thSiLabel);
 
   for (let i = 1; i <= 18; i += 1) {
     const th = document.createElement('th');
@@ -444,12 +464,12 @@ function buildScoreTableHead(pars, strokeIndex) {
     trSi.appendChild(th);
   }
 
-  // blanks under totals
   for (let j = 0; j < 4; j += 1) {
     const th = document.createElement('th');
-    th.textContent = '';
+    th.className = 'tot-col';
     trSi.appendChild(th);
   }
+
   thead.appendChild(trSi);
 
   return thead;
