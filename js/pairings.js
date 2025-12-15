@@ -450,11 +450,12 @@ function buildScoreTableBody(round, players, pars = [], strokeIndex = []) {
   const scores = Array.isArray(round?.scores) ? round.scores : [];
   const byPlayer = new Map(scores.map((s) => [s?.player, s]));
 
-  // --- Par row
-  tbody.appendChild(buildMetaRow('Par', pars, 'par-input'));
+  // safe arrays
+  const safePars = Array.isArray(pars) ? pars : [];
+  const safeSI = Array.isArray(strokeIndex) ? strokeIndex : [];
 
-  // --- Stroke Index row
-  tbody.appendChild(buildMetaRow('SI', strokeIndex, 'si-input'));
+  tbody.appendChild(buildMetaRow('Par', safePars, 'par-input'));
+  tbody.appendChild(buildMetaRow('SI', safeSI, 'si-input'));
 
   players.forEach((p) => {
     const s = byPlayer.get(p) || {
