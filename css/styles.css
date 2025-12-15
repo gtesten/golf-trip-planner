@@ -231,13 +231,23 @@ textarea{ resize: vertical; }
   background: rgba(248,250,252,.55);
 }
 
-/* Sticky LEFT columns: Player + Hdcp */
+/* =========================================================
+   Sticky LEFT columns: Player + Hdcp (FINAL)
+   ========================================================= */
+
 .round-card .score-table th:nth-child(1),
 .round-card .score-table td:nth-child(1){
   position: sticky;
   left: 0;
-  z-index: 6;
-  background: rgba(255,255,255,.98);
+
+  min-width: var(--col-player);
+  width: var(--col-player);
+  max-width: var(--col-player);
+
+  z-index: 30;
+  background: #ffffff;              /* solid paint layer */
+  background-clip: padding-box;
+
   text-align: left;
   font-weight: 800;
   padding-left: 12px;
@@ -247,9 +257,36 @@ textarea{ resize: vertical; }
 .round-card .score-table td:nth-child(2){
   position: sticky;
   left: var(--col-player);
-  z-index: 6;
-  background: rgba(255,255,255,.98);
+
+  min-width: var(--col-hdcp);
+  width: var(--col-hdcp);
+  max-width: var(--col-hdcp);
+
+  z-index: 29;
+  background: #ffffff;              /* solid paint layer */
+  background-clip: padding-box;
+
   box-shadow: 8px 0 0 rgba(148,163,184,.12);
+}
+
+/* Hole columns: fixed width so inputs don't drift */
+.round-card .score-table th:nth-child(n+3),
+.round-card .score-table td:nth-child(n+3){
+  min-width: var(--col-hole);
+  width: var(--col-hole);
+}
+
+/* Totals at the end (Out / In / Gross / Net) */
+.round-card .score-table th:nth-last-child(-n+4),
+.round-card .score-table td:nth-last-child(-n+4){
+  min-width: var(--col-total);
+  width: var(--col-total);
+}
+
+/* Sticky header must be above sticky body cells */
+.round-card .score-table thead th{
+  z-index: 40;
+  background: #f0fdf4;
 }
 
 /* =========================================================
