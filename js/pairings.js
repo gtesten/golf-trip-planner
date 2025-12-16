@@ -12,7 +12,7 @@ export function getPlayersFromTextarea(){
     .split('\n').map(s=>s.trim()).filter(Boolean);
 }
 
-function makeFoursomes(players) {
+export function makeFoursomes(players) {
   const list = Array.isArray(players) ? players.slice() : [];
   const groups = [];
   for (let i = 0; i < list.length; i += 4) groups.push(list.slice(i, i + 4));
