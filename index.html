@@ -1,496 +1,112 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Golf Trip Planner</title>
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <title>Golf Trip Planner</title>
 
-  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Update path if your CSS file name/location differs -->
+  <link rel="stylesheet" href="./css/style.css" />
+
   <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f3f4f6;
-      color: #111827;
-    }
-
-    header {
-      background: #065f46;
-      color: white;
-      padding: 1rem 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 1.4rem;
-    }
-
-    .header-sub {
-      font-size: 0.85rem;
-      opacity: 0.9;
-    }
-
-    main {
-      max-width: 1100px;
-      margin: 1.5rem auto;
-      padding: 1.5rem;
-      background: white;
-      border-radius: 0.75rem;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-    }
-
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-      align-items: center;
-    }
-
-    button {
-      border: none;
-      border-radius: 999px;
-      padding: 0.45rem 0.9rem;
-      font-size: 0.9rem;
-      cursor: pointer;
-      background: #059669;
-      color: white;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-    }
-
-    button.secondary {
-      background: #e5e7eb;
-      color: #111827;
-    }
-
-    button.small {
-      padding: 0.2rem 0.5rem;
-      font-size: 0.75rem;
-      border-radius: 999px;
-    }
-
-    button.danger {
-      background: #dc2626;
-      color: white;
-    }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .status {
-      font-size: 0.85rem;
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: #9ca3af;
-    }
-
-    .status-dot.ok {
-      background: #10b981;
-    }
-
-    .status-dot.error {
-      background: #ef4444;
-    }
-
-    .status-dot.loading {
-      background: #f97316;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-      border-bottom: 1px solid #e5e7eb;
-      padding-bottom: 0.25rem;
-      flex-wrap: wrap;
-    }
-
-    .tab-btn {
-      border: none;
-      background: transparent;
-      padding: 0.35rem 0.75rem;
-      border-radius: 999px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      color: #6b7280;
-    }
-
-    .tab-btn.active {
-      background: #ecfdf5;
-      color: #047857;
-      font-weight: 600;
-    }
-
-    .tab-panel {
-      display: none;
-    }
-
-    .tab-panel.active {
-      display: block;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-
-    label {
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: #374151;
-      display: block;
-      margin-bottom: 0.2rem;
-    }
-
-    input[type="text"],
-    input[type="date"],
-    input[type="time"],
-    input[type="number"],
-    textarea {
-      width: 100%;
-      border-radius: 0.5rem;
-      border: 1px solid #d1d5db;
-      padding: 0.45rem 0.6rem;
-      font-size: 0.9rem;
-      font-family: inherit;
-      box-sizing: border-box;
-    }
-
-    textarea {
-      min-height: 120px;
-      resize: vertical;
-    }
-
-    .hint {
-      font-size: 0.75rem;
-      color: #6b7280;
-      margin-top: 0.15rem;
-    }
-
-    footer {
-      margin-top: 1rem;
-      font-size: 0.75rem;
-      color: #9ca3af;
-      text-align: right;
-    }
-
-    /* Cards for Itinerary + Rounds */
-
-    .day-card,
-    .round-card {
-      border-radius: 0.75rem;
-      border: 1px solid #e5e7eb;
-      padding: 0.75rem 0.9rem;
-      margin-bottom: 0.75rem;
-      background: #f9fafb;
-    }
-
-    .day-header,
-    .round-header {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      align-items: center;
-      margin-bottom: 0.5rem;
-    }
-
-    .day-header input[type="date"],
-    .round-header input[type="date"],
-    .round-header input[type="time"] {
-      max-width: 160px;
-    }
-
-    .day-header input[type="text"],
-    .round-header input[type="text"] {
-      flex: 1;
-      min-width: 160px;
-    }
-
-    .pill-label {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #6b7280;
-      margin-bottom: 0.2rem;
-    }
-
-    .section-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.4rem;
-    }
-
-    .section-title {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #111827;
-    }
-
-    .stack {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-      margin-top: 0.5rem;
-    }
-
-    th,
-    td {
-      border: 1px solid #e5e7eb;
-      padding: 0.35rem 0.35rem;
-      text-align: left;
-    }
-
-    th {
-      background: #f3f4f6;
-      font-weight: 600;
-    }
-
-    @media (max-width: 640px) {
-      header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.25rem;
-      }
-
-      .controls {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .status {
-        margin-left: 0;
-      }
-    }
+    /* Safety: ensures panel switching is visible even if CSS is missing */
+    .is-hidden { display: none !important; }
   </style>
 </head>
+
 <body>
-  <header>
-    <div>
-      <h1>Golf Trip Planner</h1>
-      <div class="header-sub">Plan trips, pairings, scores, and expenses in one place.</div>
-    </div>
-    <div class="status" id="statusBar">
-      <span class="status-dot" id="statusDot"></span>
-      <span id="statusText">Initializing…</span>
+  <header class="site-header">
+    <div class="container">
+      <h1 class="site-title">Golf Trip Planner</h1>
     </div>
   </header>
 
-  <main>
-    <section class="controls">
-      <button id="newTripBtn">➕ New Trip</button>
-      <button id="saveTripBtn">💾 Save Trip</button>
-      <button id="reloadTripBtn" class="secondary">🔄 Reload from Supabase</button>
-      <button id="clearLocalBtn" class="secondary">🧹 Clear Local Trip ID</button>
-      <button id="debugBtn" class="secondary">🐛 Log Current Trip</button>
-    </section>
-
-<section>
-  <div class="tabs" data-tabs-root>
-    <button class="tab-btn active" data-tab="detailsTab">Trip Details</button>
-    <button class="tab-btn" data-tab="itineraryTab">Itinerary</button>
-    <button class="tab-btn" data-tab="pairingsTab">Pairings &amp; Scores</button>
-    <button class="tab-btn" data-tab="expensesTab">Expenses &amp; Docs</button>
-    <button class="tab-btn" data-tab="sharingTab">Sharing</button>
-  </div>
-
-  <!-- 👇 ADD THESE PANELS NEXT -->
-</section>
-<div class="tab-panels">
-
-  <div class="tab-panel" data-tab-panel="detailsTab">
-    <!-- MOVE/PASTE your existing Trip Details markup here -->
-  </div>
-
-  <div class="tab-panel is-hidden" data-tab-panel="itineraryTab">
-    <!-- MOVE/PASTE your Itinerary markup here -->
-  </div>
-
-  <div class="tab-panel is-hidden" data-tab-panel="pairingsTab">
-    <!-- MOVE/PASTE your Pairings & Scores markup here -->
-  </div>
-
-  <div class="tab-panel is-hidden" data-tab-panel="expensesTab">
-    <!-- MOVE/PASTE your Expenses & Docs markup here -->
-  </div>
-
-  <div class="tab-panel is-hidden" data-tab-panel="sharingTab">
-    <!-- MOVE/PASTE your Sharing markup here -->
-  </div>
-
-</div>
-
-
-      <!-- Trip Details -->
-      <div class="tab-panel active" id="detailsTab">
-        <div class="grid">
-          <div>
-            <label for="tripName">Trip Name</label>
-            <input type="text" id="tripName" placeholder="Forest Dunes 2026" />
-          </div>
-          <div>
-            <label for="tripLocation">Location</label>
-            <input type="text" id="tripLocation" placeholder="Forest Dunes, Roscommon, MI" />
-          </div>
-          <div>
-            <label for="tripStartDate">Start Date</label>
-            <input type="date" id="tripStartDate" />
-          </div>
-          <div>
-            <label for="tripEndDate">End Date</label>
-            <input type="date" id="tripEndDate" />
-          </div>
-        </div>
-        <p class="hint">
-          Click <strong>Save Trip</strong> to create or update a trip record in Supabase. Your browser keeps a UUID
-          <code>public_id</code> so you can reload it later.
-        </p>
+  <main class="container">
+    <!-- Tabs -->
+    <section>
+      <div class="tabs" data-tabs-root>
+        <button type="button" class="tab-btn active" data-tab="detailsTab">Trip Details</button>
+        <button type="button" class="tab-btn" data-tab="itineraryTab">Itinerary</button>
+        <button type="button" class="tab-btn" data-tab="pairingsTab">Pairings &amp; Scores</button>
+        <button type="button" class="tab-btn" data-tab="expensesTab">Expenses &amp; Docs</button>
+        <button type="button" class="tab-btn" data-tab="sharingTab">Sharing</button>
       </div>
 
-      <!-- Itinerary (structured by day) -->
-      <div class="tab-panel" id="itineraryTab">
-        <div class="section-bar">
-          <div class="section-title">Daily Itinerary</div>
-          <button id="addDayBtn" class="small">➕ Add Day</button>
+      <!-- Panels -->
+      <div class="tab-panels">
+
+        <!-- Trip Details -->
+        <div class="tab-panel" data-tab-panel="detailsTab">
+          <h2>Trip Details</h2>
+
+          <!-- Keep these IDs inside the details panel so tabs can hide/show them -->
+          <div class="form-grid">
+            <div class="form-row">
+              <label for="tripName">Trip Name</label>
+              <input id="tripName" name="tripName" type="text" placeholder="e.g., Forest Dunes 2026" />
+            </div>
+
+            <div class="form-row">
+              <label for="tripLocation">Location</label>
+              <input id="tripLocation" name="tripLocation" type="text" placeholder="City / Resort" />
+            </div>
+
+            <div class="form-row">
+              <label for="tripDates">Dates</label>
+              <input id="tripDates" name="tripDates" type="text" placeholder="MM/DD – MM/DD" />
+            </div>
+
+            <div class="form-row">
+              <label for="playersInput">Players (one per line)</label>
+              <textarea id="playersInput" name="playersInput" rows="8" placeholder="Glenn&#10;Player 2&#10;Player 3"></textarea>
+            </div>
+          </div>
+
+          <!-- If you had more Trip Details content before, paste it below INSIDE this panel -->
+          <div id="tripDetailsExtra"></div>
         </div>
-        <p class="hint">
-          Each day can have a date, a label (e.g., "Arrival + Warm-up"), morning plan, afternoon/evening plan, and notes.
-        </p>
 
-        <div id="itineraryDaysContainer"></div>
+        <!-- Itinerary -->
+        <div class="tab-panel is-hidden" data-tab-panel="itineraryTab">
+          <h2>Itinerary</h2>
+          <p>If your itinerary UI already exists elsewhere in your old index.html, cut/paste it into this panel.</p>
 
-        <!-- Hidden storage for JSON, used when saving/loading -->
-        <textarea id="itineraryData" style="display:none;"></textarea>
-      </div>
-
-  <!-- Pairings & Scores (structured) -->
-  <div class="tab-panel" id="pairingsTab">
-
-  <div class="pairings-shell">
-
-    <!-- Left: Players -->
-    <section class="panel">
-      <div class="panel-head">
-        <div>
-          <div class="panel-title">Players</div>
-          <div class="panel-sub">One per line. This drives score rows for every round.</div>
+          <!-- Safe target containers (optional) -->
+          <div id="itineraryContainer"></div>
         </div>
-      </div>
 
-      <label for="playersInput" class="sr-only">Players</label>
-      <textarea
-        id="playersInput"
-        placeholder="Glenn&#10;Mike&#10;Dave&#10;Chris"
-      ></textarea>
+        <!-- Pairings & Scores -->
+        <div class="tab-panel is-hidden" data-tab-panel="pairingsTab">
+          <h2>Pairings &amp; Scores</h2>
+          <p>Cut/paste your Pairings &amp; Scores section into this panel.</p>
 
-      <div class="panel-foot">
-        <div class="hint">
-          Tip: Keep names consistent (no nicknames) so totals stay clean across rounds.
+          <!-- Common containers your existing JS might be using -->
+          <div id="pairingsContainer"></div>
+          <div id="roundsContainer"></div>
         </div>
+
+        <!-- Expenses & Docs -->
+        <div class="tab-panel is-hidden" data-tab-panel="expensesTab">
+          <h2>Expenses &amp; Docs</h2>
+          <p>Cut/paste your Expenses/Docs UI into this panel.</p>
+
+          <div id="expensesContainer"></div>
+          <div id="docsContainer"></div>
+        </div>
+
+        <!-- Sharing -->
+        <div class="tab-panel is-hidden" data-tab-panel="sharingTab">
+          <h2>Sharing</h2>
+          <p>Cut/paste your Sharing section into this panel.</p>
+
+          <div id="sharingContainer"></div>
+        </div>
+
       </div>
     </section>
-
-    <!-- Right: Rounds -->
-    <section class="panel">
-      <div class="panel-head">
-        <div>
-          <div class="panel-title">Rounds & Scores</div>
-          <div class="panel-sub">Add rounds, then enter hole scores per player.</div>
-        </div>
-
-        <div class="panel-actions">
-          <button id="addRoundBtn" class="small">➕ Add Round</button>
-        </div>
-      </div>
-
-      <div id="roundsContainer"></div>
-
-      <div class="panel-foot">
-        <div class="hint">Scroll inside a round to see all holes. Player + Hdcp stay pinned.</div>
-      </div>
-    </section>
-
-  </div>
-
-  <!-- Hidden storage for JSON, used when saving/loading -->
-  <textarea id="pairingsData" style="display:none;"></textarea>
-</div>
-
-      <!-- Expenses & Docs -->
-      <div class="tab-panel" id="expensesTab">
-        <label for="expensesData">Expenses &amp; Docs</label>
-        <textarea
-          id="expensesData"
-          placeholder='Example:
-{
-  "budget": {
-    "lodging": 2600,
-    "golf": 1400,
-    "meals": 800,
-    "travel": 1200
-  },
-  "docs": [
-    {"label": "Res #12345 – Forest Dunes", "url": "https://..."},
-    {"label": "Res #67890 – The Loop", "url": "https://..."}
-  ]
-}'
-        ></textarea>
-        <div class="hint">
-          Store budget numbers, receipts, and doc links here. Stored in <code>trips.expenses_data</code>.
-        </div>
-      </div>
-
-      <!-- Sharing -->
-      <div class="tab-panel" id="sharingTab">
-        <label for="sharingData">Sharing Settings / Notes</label>
-        <textarea
-          id="sharingData"
-          placeholder='Example:
-{
-  "organizer_email": "you@example.com",
-  "share_link": "https://gtesten.github.io/golf-trip-planner/?trip=...",
-  "notes": "Venmo @GlennTesten for lodging by 7/15. Final pairings will be posted the week before."
-}'
-        ></textarea>
-        <div class="hint">
-          Any info you use when sending this trip to the group goes here. Stored in <code>trips.sharing_data</code>.
-        </div>
-      </div>
-    </section>
-
-    <footer>
-      Current trip UUID is stored in <code>localStorage["currentTripPublicId"]</code>.
-    </footer>
   </main>
 
-  <!-- Supabase JS v2 -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Your app code -->
-  <script type="module" src="js/app.mjs"></script>
+  <!-- Update path if your JS entry differs -->
+  <script type="module" src="./js/app.mjs"></script>
 </body>
 </html>
