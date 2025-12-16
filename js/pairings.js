@@ -299,6 +299,5 @@ function buildMetaRow(label, values, inputClass) {
 function setToggleActive(toggleEl, view) {
   toggleEl.querySelectorAll('button[data-view]').forEach((b) => {
     b.classList.toggle('is-active', b.getAttribute('data-view') === view);
->>>>>>> bcb7d00 (Fix tabs not clickable y restoring pointer-events via CSS)
   });
 }
