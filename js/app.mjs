@@ -45,6 +45,46 @@ function reflowUnlockedRounds() {
   saveModel(model);
 }
 
+function wireTabsOnce() {
+  // Prevent double-binding (you've had duplicate loads before)
+  if (document.body.dataset.tabsWired === '1') return;
+  document.body.dataset.tabsWired = '1';
+
+  function showTab(tabId) {
+    if (!tabId) return;
+
+    // Toggle active button
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.tab === tabId);
+    });
+
+    // Show/hide panels
+    document.querySelectorAll('.tab-panel').forEach((panel) => {
+      panel.style.display = panel.id === tabId ? '' : 'none';
+    });
+  }
+
+  // Delegated click handler (survives rerenders)
+  document.addEventListener('click', (e) => {
+    const btn = e.target?.closest?.('.tab-btn[data-tab]');
+    if (!btn) return;
+    e.preventDefault();
+
+    const tabId = btn.dataset.tab;
+    showTab(tabId);
+  });
+
+  // Initial tab: active button → else first button
+  const initial =
+    document.querySelector('.tab-btn.active')?.dataset.tab ||
+    document.querySelector('.tab-btn[data-tab]')?.dataset.tab;
+
+  // Only run if panels exist
+  if (initial && document.getElementById(initial)) {
+    showTab(initial);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const model = loadModel();
   renderPairingsFromModel(model);
