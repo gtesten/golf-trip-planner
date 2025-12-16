@@ -1,3 +1,5 @@
+window.__GTP_APP_LOADED__ = true; console.log("[GTP] app.mjs running");
+
 // js/app.mjs
 'use strict';
 
