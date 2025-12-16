@@ -1,157 +1,100 @@
-
-// --- DEBUG: click + tab detection (remove later) ---
-document.addEventListener(
-  "click",
-  (e) => {
-    const tab = e.target.closest('[data-tab],[data-target],[aria-controls],[role="tab"],a[href^="#"]');
-    console.log("[CLICK]", e.target, "| closestTab?", !!tab, tab ? tab.outerHTML.slice(0, 120) + "..." : "");
-  },
-  true // CAPTURE: logs even if something stops propagation
-);
-
-import { initTabs } from "./tabs.js";
-
-window.addEventListener("DOMContentLoaded", () => {
-  initTabs();
-});
-
 // js/app.mjs
-'use strict';
-
-import {
-  renderPairingsFromModel,
-  getPairingsModelFromDOM,
-  getPlayersFromTextarea,
-  makeFoursomes
-} from './pairings.js';
+import { initTabs } from "./tabs.js";
 
 window.__GTP_APP_LOADED__ = true;
 console.log("[GTP] app.mjs running");
 
-window.addEventListener("DOMContentLoaded", () => {
-  // Try immediately
-  initTabs({ debug: true });
+// ---------- Utilities ----------
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // Try a couple more times in case markup renders shortly after load
-  setTimeout(() => initTabs({ debug: true }), 250);
-  setTimeout(() => initTabs({ debug: true }), 1000);
-});
-
-window.addEventListener("gtp:tabchange", (e) => {
-  const tab = e.detail?.tab;
-  console.log("[GTP] tab change:", tab);
-
-  // Call your per-tab render/init here (examples)
-  // if (tab === "pairings") renderPairingsFromModel(getPairingsModelFromDOM());
-  // if (tab === "scores")   renderScores();
-  // if (tab === "settings") renderSettings();
-
-  // If your app already has an init function per section, call it here.
-});
-
-const STORAGE_KEY = 'golfTripPlanner_pairings_v2';
-
-let lastPlayersKey = '';
-
-function debounce(fn, wait = 250) {
-  let t;
-  return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), wait);
-  };
+function logDOMSummary() {
+  const tabBtns = document.querySelectorAll(".tab-btn[data-tab]").length;
+  const panels = document.querySelectorAll("[data-tab-panel]").length;
+  console.log(`[GTP] DOM summary: tabBtns=${tabBtns} panels=${panels}`);
 }
 
-function loadModel() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { players: [], rounds: [] };
-  } catch {
-    return { players: [], rounds: [] };
+function forceShowOnlyPanel(panelName) {
+  // Hard-force: hide all panels, show one (inline style wins)
+  const panels = Array.from(document.querySelectorAll("[data-tab-panel]"));
+  panels.forEach((p) => {
+    const match = p.getAttribute("data-tab-panel") === panelName;
+    if (match) {
+      p.removeAttribute("hidden");
+      p.style.display = "";
+      p.style.visibility = "visible";
+      p.style.opacity = "1";
+    } else {
+      p.setAttribute("hidden", "");
+      p.style.display = "none";
+    }
+  });
+}
+
+// This is the “make it work” initializer:
+// - tries multiple times (for delayed DOM rendering)
+// - after initTabs, forces the currently active tab panel visible
+async function initTabsReliably() {
+  const maxTries = 20; // 20 * 200ms = 4s
+  for (let i = 1; i <= maxTries; i++) {
+    const ok = initTabs();
+    logDOMSummary();
+
+    // If panels exist, enforce visible panel based on active button
+    const activeBtn =
+      document.querySelector(".tab-btn.active[data-tab]") ||
+      document.querySelector(".tab-btn[data-tab]");
+
+    const activeName = activeBtn?.getAttribute("data-tab");
+    if (activeName) {
+      forceShowOnlyPanel(activeName);
+      console.log(`[GTP] active tab = ${activeName} (enforced)`);
+    }
+
+    // If initTabs found panels/buttons, we can stop retrying
+    const tabBtns = document.querySelectorAll(".tab-btn[data-tab]").length;
+    const panels = document.querySelectorAll("[data-tab-panel]").length;
+    if (ok || (tabBtns > 0 && panels > 0)) {
+      console.log(`[GTP] tabs initialized (try ${i}/${maxTries})`);
+      return true;
+    }
+
+    await sleep(200);
   }
+
+  console.warn("[GTP] tabs init retries exhausted — check index.html panel markup");
+  return false;
 }
 
-function saveModel(model) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(model));
-}
+// ---------- Boot ----------
+window.addEventListener("DOMContentLoaded", async () => {
+  console.log("[GTP] DOMContentLoaded");
 
-function reflowUnlockedRounds() {
-  const model = getPairingsModelFromDOM();
-  const players = getPlayersFromTextarea();
-  model.players = players;
+  // 1) Initialize tabs (reliable + delayed DOM-safe)
+  await initTabsReliably();
 
-  model.rounds = model.rounds.map(r =>
-    r.lockGroups ? r : { ...r, groups: makeFoursomes(players) }
+  // 2) When user clicks a tab, enforce the panel visibility immediately
+  //    (covers cases where other scripts/CSS fight visibility)
+  document.addEventListener(
+    "click",
+    (e) => {
+      const btn = e.target.closest(".tab-btn[data-tab]");
+      if (!btn) return;
+      const name = btn.getAttribute("data-tab");
+      if (!name) return;
+
+      // Let the tab handler run first, then enforce panel visibility
+      queueMicrotask(() => {
+        forceShowOnlyPanel(name);
+        console.log(`[GTP] click -> enforce panel ${name}`);
+      });
+    },
+    true
   );
 
-  renderPairingsFromModel(model);
-  saveModel(model);
-}
+  // 3) If your app dynamically injects content after load,
+  //    you can re-run this whenever you render sections.
+  //    (Leaving this here as a hook.)
+  window.__GTP_REINIT_TABS__ = initTabsReliably;
 
-function wireTabsOnce() {
-  // Prevent double-binding (you've had duplicate loads before)
-  if (document.body.dataset.tabsWired === '1') return;
-  document.body.dataset.tabsWired = '1';
-
-  function showTab(tabId) {
-    if (!tabId) return;
-
-    // Toggle active button
-    document.querySelectorAll('.tab-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.tab === tabId);
-    });
-
-    // Show/hide panels
-    document.querySelectorAll('.tab-panel').forEach((panel) => {
-      panel.style.display = panel.id === tabId ? '' : 'none';
-    });
-  }
-
-  // Delegated click handler (survives rerenders)
-  document.addEventListener('click', (e) => {
-    const btn = e.target?.closest?.('.tab-btn[data-tab]');
-    if (!btn) return;
-    e.preventDefault();
-
-    const tabId = btn.dataset.tab;
-    showTab(tabId);
-  });
-
-  // Initial tab: active button → else first button
-  const initial =
-    document.querySelector('.tab-btn.active')?.dataset.tab ||
-    document.querySelector('.tab-btn[data-tab]')?.dataset.tab;
-
-  // Only run if panels exist
-  if (initial && document.getElementById(initial)) {
-    showTab(initial);
-  }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const model = loadModel();
-  renderPairingsFromModel(model);
-
-  initTabs();
-
-  // ✅ initialize once after initial render
-  lastPlayersKey = (Array.isArray(model?.players) ? model.players : []).join('|');
-
-  const playersInput = document.getElementById('playersInput');
-  if (!playersInput) return;
-
-  // Debounced input handler
-  const onPlayersInput = debounce(() => {
-    const playersNow = getPlayersFromTextarea();
-    const key = playersNow.join('|');
-
-    // Enter-only / whitespace-only changes → do nothing
-    if (key === lastPlayersKey) return;
-
-    lastPlayersKey = key;
-    reflowUnlockedRoundsAndRender();
-  }, 250);
-
-  playersInput.addEventListener('input', onPlayersInput);
-
-  // Prevent form submission on Enter
-  playersInput.closest('form')?.addEventListener('submit', (e) => e.preventDefault());
+  console.log("[GTP] boot complete");
 });
