@@ -53,12 +53,11 @@ function buildState(root) {
   return { tabs, panelByName };
 }
 
-function setActive({ name, activeClass, hiddenClass }) {
+function setActive({ name, activeClass, hiddenClass, debug }) {
   const { tabs, panelByName } = buildState(document);
-
   if (!name || !panelByName.has(name)) return false;
 
-  // Tabs
+  // Tabs UI
   for (const t of tabs) {
     const tName = getTabName(t);
     const isActive = tName === name;
@@ -67,12 +66,27 @@ function setActive({ name, activeClass, hiddenClass }) {
     t.setAttribute("tabindex", isActive ? "0" : "-1");
   }
 
-  // Panels (ONLY mapped panels)
+  // Panels UI (ONLY mapped panels)
   for (const [pName, p] of panelByName.entries()) {
     const isActive = pName === name;
+
+    // Prefer class-based hiding (less “magic” than hidden)
     if (hiddenClass) p.classList.toggle(hiddenClass, !isActive);
+
+    // If you want hidden too, keep it — but make sure we remove it for active
     p.toggleAttribute("hidden", !isActive);
-    if (!p.getAttribute("role")) p.setAttribute("role", "tabpanel");
+
+    // Safety: ensure active panel isn't stuck display:none from inline styles
+    if (isActive) p.style.display = "";
+  }
+
+  // 🔥 Emit an event so app.mjs can render/populate that tab on demand
+  window.dispatchEvent(new CustomEvent("gtp:tabchange", { detail: { tab: name } }));
+
+  if (debug) {
+    const panel = panelByName.get(name);
+    const len = (panel?.textContent || "").trim().length;
+    console.log(`[tabs] active="${name}" panelTextLen=${len}`, panel);
   }
 
   return true;
@@ -116,7 +130,7 @@ export function initTabs(options = {}) {
 
         if (tabEl.tagName === "A" && isHashLink(tabEl)) e.preventDefault();
 
-        const ok = setActive({ name, activeClass, hiddenClass });
+        const ok = setActive({ name, activeClass, hiddenClass, debug });
         if (!ok && debug) console.warn("[tabs] No matching panel for:", name);
       },
       true
@@ -134,7 +148,7 @@ export function initTabs(options = {}) {
   }
 
   const def = pickDefaultActive({ tabs, panelByName });
-  if (def) return setActive({ name: def, activeClass, hiddenClass });
+  if (def) return setActive({ name: def, activeClass, hiddenClass, debug });
 
   return false;
 }

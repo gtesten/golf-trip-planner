@@ -33,6 +33,18 @@ window.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => initTabs({ debug: true }), 1000);
 });
 
+window.addEventListener("gtp:tabchange", (e) => {
+  const tab = e.detail?.tab;
+  console.log("[GTP] tab change:", tab);
+
+  // Call your per-tab render/init here (examples)
+  // if (tab === "pairings") renderPairingsFromModel(getPairingsModelFromDOM());
+  // if (tab === "scores")   renderScores();
+  // if (tab === "settings") renderSettings();
+
+  // If your app already has an init function per section, call it here.
+});
+
 const STORAGE_KEY = 'golfTripPlanner_pairings_v2';
 
 let lastPlayersKey = '';
