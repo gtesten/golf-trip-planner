@@ -1,3 +1,14 @@
+
+// --- DEBUG: click + tab detection (remove later) ---
+document.addEventListener(
+  "click",
+  (e) => {
+    const tab = e.target.closest('[data-tab],[data-target],[aria-controls],[role="tab"],a[href^="#"]');
+    console.log("[CLICK]", e.target, "| closestTab?", !!tab, tab ? tab.outerHTML.slice(0, 120) + "..." : "");
+  },
+  true // CAPTURE: logs even if something stops propagation
+);
+
 // js/app.mjs
 'use strict';
 

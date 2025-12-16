@@ -26,6 +26,11 @@
 
 *{ box-sizing:border-box; }
 
+/* DEBUG/FIX: ensure nothing blocks tab clicks */
+.tabs, .tabs * { pointer-events: auto !important; }
+.tabs { position: relative; z-index: 9999; }
+
+
 html, body{
   margin:0;
   padding:0;
