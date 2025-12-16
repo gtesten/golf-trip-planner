@@ -331,6 +331,8 @@ body,
   pointer-events: auto !important;
 }
 
+.is-hidden { display: none !important; }
+
 /* ===========================
    Pairings & Scores – UI Polish Patch
    (Add to bottom of your CSS)

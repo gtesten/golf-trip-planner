@@ -7,6 +7,7 @@ import {
   getPlayersFromTextarea,
   makeFoursomes
 } from './pairings.js';
+import { initTabs } from './tabs.js';
 
 const STORAGE_KEY = 'golfTripPlanner_pairings_v2';
 
@@ -88,6 +89,8 @@ function wireTabsOnce() {
 document.addEventListener('DOMContentLoaded', () => {
   const model = loadModel();
   renderPairingsFromModel(model);
+
+  initTabs();
 
   // ✅ initialize once after initial render
   lastPlayersKey = (Array.isArray(model?.players) ? model.players : []).join('|');
