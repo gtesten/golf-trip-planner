@@ -2,92 +2,147 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Golf Trip Planner</title>
-  <link rel="icon" href="./favicon.svg">
-
-  <!-- Update path if your CSS file name/location differs -->
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 
 <body>
-  <header class="site-header">
-    <div class="container">
-      <h1 class="site-title">Golf Trip Planner</h1>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">⛳</div>
+      <div class="brand-text">
+        <div class="brand-title">Golf Trip Planner</div>
+        <div class="brand-subtitle">Itinerary • Pairings • Scores</div>
+      </div>
+    </div>
+
+    <div class="status" id="statusPill" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="statusText">Local mode</span>
     </div>
   </header>
 
-  <main class="container">
-    <!-- Tabs -->
-    <section>
-      <div class="tabs" data-tabs-root>
-        <button type="button" class="tab-btn active" data-tab="detailsTab">Trip Details</button>
-        <button type="button" class="tab-btn" data-tab="itineraryTab">Itinerary</button>
-        <button type="button" class="tab-btn" data-tab="pairingsTab">Pairings &amp; Scores</button>
-        <button type="button" class="tab-btn" data-tab="expensesTab">Expenses &amp; Docs</button>
-        <button type="button" class="tab-btn" data-tab="sharingTab">Sharing</button>
+  <main class="shell">
+    <nav class="tabs" role="tablist" aria-label="Main navigation">
+      <button class="tab" role="tab" aria-selected="true" data-tab="itinerary">Itinerary</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="pairings">Pairings & Scores</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="settings">Settings</button>
+    </nav>
+
+    <section class="panel" data-panel="itinerary" role="tabpanel">
+      <div class="panel-header">
+        <h2>Itinerary</h2>
+        <div class="actions">
+          <button class="btn" id="btnAddDay">+ Add day</button>
+          <button class="btn secondary" id="btnClearItinerary">Clear</button>
+        </div>
       </div>
 
-      <!-- Panels -->
-<div class="tab-panels">
+      <div id="itineraryList" class="stack"></div>
 
-  <div class="tab-panel" data-tab-panel="detailsTab">
-    <h2>Trip Details</h2>
-    <div class="form-grid">
-      <div class="form-row">
-        <label for="tripName">Trip Name</label>
-        <input id="tripName" name="tripName" type="text" placeholder="e.g., Forest Dunes 2026" />
+      <div class="hint">
+        Tip: add time like <code>7:30 AM</code> and keep notes short. Everything autosaves locally.
+      </div>
+    </section>
+
+    <section class="panel" data-panel="pairings" role="tabpanel" hidden>
+      <div class="panel-header">
+        <h2>Pairings & Scores</h2>
+        <div class="actions">
+          <button class="btn" id="btnAddRound">+ Add round</button>
+          <button class="btn secondary" id="btnResetScores">Reset scores</button>
+        </div>
       </div>
 
-      <div class="form-row">
-        <label for="tripLocation">Location</label>
-        <input id="tripLocation" name="tripLocation" type="text" placeholder="City / Resort" />
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Players</div>
+          <p class="muted">One per line. Example: <code>Glenn</code></p>
+          <textarea id="playersInput" class="textarea" placeholder="Glenn&#10;Cristina&#10;Grant&#10;Paul"></textarea>
+          <div class="row">
+            <button class="btn" id="btnApplyPlayers">Apply players</button>
+            <span class="muted small" id="playersCount">0 players</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Round settings</div>
+          <div class="form">
+            <label class="label">
+              Round name
+              <input id="roundNameInput" class="input" placeholder="Day 1 – Chardon Lakes" />
+            </label>
+
+            <label class="label">
+              Holes
+              <select id="holesSelect" class="select">
+                <option value="18" selected>18</option>
+                <option value="9">9</option>
+              </select>
+            </label>
+
+            <div class="row">
+              <button class="btn" id="btnCreateRound">Create round</button>
+              <span class="muted small">Creates a score grid below</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="form-row">
-        <label for="tripDates">Dates</label>
-        <input id="tripDates" name="tripDates" type="text" placeholder="MM/DD – MM/DD" />
+      <div id="roundsContainer" class="stack"></div>
+    </section>
+
+    <section class="panel" data-panel="settings" role="tabpanel" hidden>
+      <div class="panel-header">
+        <h2>Settings</h2>
       </div>
 
-      <div class="form-row">
-        <label for="playersInput">Players (one per line)</label>
-        <textarea id="playersInput" name="playersInput" rows="8"></textarea>
+      <div class="card">
+        <div class="card-title">Supabase (optional)</div>
+        <p class="muted">
+          If you don’t configure Supabase, the site works 100% in local mode.
+        </p>
+
+        <div class="form">
+          <label class="label">
+            Supabase URL
+            <input id="sbUrl" class="input" placeholder="https://xxxx.supabase.co" />
+          </label>
+
+          <label class="label">
+            Supabase anon key
+            <input id="sbAnon" class="input" placeholder="eyJhbGciOi..." />
+          </label>
+
+          <div class="row">
+            <button class="btn" id="btnSaveSupabase">Save</button>
+            <button class="btn secondary" id="btnClearSupabase">Clear</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row">
+            <button class="btn secondary" id="btnExport">Export JSON</button>
+            <label class="btn secondary" for="importFile" style="cursor:pointer;">
+              Import JSON
+            </label>
+            <input id="importFile" type="file" accept="application/json" hidden />
+          </div>
+
+          <p class="muted small">
+            Export/import is great for quick backups or moving between devices.
+          </p>
+        </div>
       </div>
-    </div>
-  </div>
-
-  <!-- IMPORTANT: use hidden attribute -->
-  <div class="tab-panel" data-tab-panel="itineraryTab" hidden>
-    <h2>Itinerary</h2>
-
-    <!-- ✅ Your itinerary.js expects THIS id -->
-    <div id="itineraryDaysContainer"></div>
-  </div>
-
-  <div class="tab-panel" data-tab-panel="pairingsTab" hidden>
-    <h2>Pairings &amp; Scores</h2>
-
-    <!-- ✅ pairings.js uses roundsContainer -->
-    <div id="roundsContainer"></div>
-  </div>
-
-  <div class="tab-panel" data-tab-panel="expensesTab" hidden>
-    <h2>Expenses &amp; Docs</h2>
-    <div id="expensesContainer"></div>
-    <div id="docsContainer"></div>
-  </div>
-
-  <div class="tab-panel" data-tab-panel="sharingTab" hidden>
-    <h2>Sharing</h2>
-    <div id="sharingContainer"></div>
-  </div>
-
-</div>
-
     </section>
   </main>
 
-  <!-- Update path if your JS entry differs -->
+  <footer class="footer">
+    <span class="muted small">© <span id="year"></span> Golf Trip Planner</span>
+  </footer>
+
   <script type="module" src="./js/app.mjs"></script>
 </body>
 </html>

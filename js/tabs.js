@@ -1,43 +1,36 @@
-// js/tabs.js
-export function initTabs() {
-  const root = document.querySelector("[data-tabs-root]") || document;
-  const tabs = Array.from(root.querySelectorAll(".tab-btn[data-tab]"));
-  const panels = Array.from(document.querySelectorAll("[data-tab-panel]"));
+export function initTabs({ defaultTab = "itinerary" } = {}) {
+  const tabs = Array.from(document.querySelectorAll(".tab"));
+  const panels = Array.from(document.querySelectorAll(".panel[data-panel]"));
 
-  console.log("[tabs:init] tabs=", tabs.length, "panels=", panels.length);
-
-  if (!tabs.length || !panels.length) return false;
-
-  function show(name) {
-    tabs.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === name));
-
-    panels.forEach((p) => {
-      const match = p.getAttribute("data-tab-panel") === name;
-
-      // ✅ use hidden attribute
-      p.hidden = !match;
-
-      // ✅ also remove/add is-hidden class (fixes your current setup)
-      p.classList.toggle("is-hidden", !match);
+  function setActive(tabId, pushHash = true) {
+    tabs.forEach(btn => {
+      const active = btn.dataset.tab === tabId;
+      btn.setAttribute("aria-selected", active ? "true" : "false");
     });
+
+    panels.forEach(p => {
+      const active = p.dataset.panel === tabId;
+      p.hidden = !active;
+    });
+
+    if (pushHash) {
+      const next = `#${encodeURIComponent(tabId)}`;
+      if (location.hash !== next) history.replaceState(null, "", next);
+    }
   }
 
-  // One click handler only
-  root.addEventListener("click", (e) => {
-    const btn = e.target.closest(".tab-btn[data-tab]");
-    if (!btn) return;
-    e.preventDefault();
-    const name = btn.dataset.tab;
-    localStorage.setItem("gtp.activeTab", name);
-    show(name);
+  tabs.forEach(btn => {
+    btn.addEventListener("click", () => setActive(btn.dataset.tab));
   });
 
-  // Initial
-  const saved = localStorage.getItem("gtp.activeTab");
-  const defaultTab =
-    tabs.find((t) => t.classList.contains("active"))?.dataset.tab || tabs[0].dataset.tab;
+  const fromHash = decodeURIComponent((location.hash || "").replace("#", "")) || "";
+  const start = tabs.some(t => t.dataset.tab === fromHash) ? fromHash : defaultTab;
+  setActive(start, false);
 
-  show(saved && tabs.some(t => t.dataset.tab === saved) ? saved : defaultTab);
+  window.addEventListener("hashchange", () => {
+    const h = decodeURIComponent((location.hash || "").replace("#", ""));
+    if (tabs.some(t => t.dataset.tab === h)) setActive(h, false);
+  });
 
-  return true;
+  return { setActive };
 }

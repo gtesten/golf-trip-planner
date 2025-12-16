@@ -1,303 +1,242 @@
-'use strict';
+import { saveModel } from "./storage.js";
 
-/* ========= UTILITIES ========= */
-
-function toNumber(v){ return Number(v) || 0; }
-function clamp18(a){ return [...(a||[])].slice(0,18).concat(Array(18).fill('')).slice(0,18); }
-function defaultPars(){ return Array(18).fill(''); }
-function defaultStrokeIndex(){ return Array(18).fill(''); }
-
-export function getPlayersFromTextarea(){
-  return (document.getElementById('playersInput')?.value || '')
-    .split('\n').map(s=>s.trim()).filter(Boolean);
+export function ensurePairings(model) {
+  model.players ??= [];
+  model.rounds ??= [];
 }
 
-export function makeFoursomes(players) {
-  const list = Array.isArray(players) ? players.slice() : [];
-  const groups = [];
-  for (let i = 0; i < list.length; i += 4) groups.push(list.slice(i, i + 4));
-  return groups;
+export function parsePlayers(text) {
+  return text
+    .split("\n")
+    .map(s => s.trim())
+    .filter(Boolean)
+    .slice(0, 24);
 }
 
-/* ========= RENDER ========= */
-
-export function renderPairingsFromModel(model){
-  const roundsEl = document.getElementById('roundsContainer');
-  roundsEl.innerHTML='';
-  (model.rounds.length?model.rounds:[{}])
-    .forEach(r=>roundsEl.appendChild(createRoundCard(r, model.players)));
+function makeEmptyScores(players, holes) {
+  const scores = {};
+  for (const p of players) {
+    scores[p] = Array.from({ length: holes }, () => "");
+  }
+  return scores;
 }
 
-export function getPairingsModelFromDOM(){
-  const rounds=[...document.querySelectorAll('.round-card')].map(card=>({
-    course: card.querySelector('.round-course')?.value || '',
-    date: card.querySelector('.round-date')?.value || '',
-    groups: JSON.parse(card.dataset.groups||'[]'),
-    lockGroups: card.dataset.lockGroups==='1',
-    scores:[]
-  }));
-  return { players:getPlayersFromTextarea(), rounds };
+function sumRow(arr) {
+  let t = 0;
+  for (const v of arr) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) continue;
+    t += n;
+  }
+  return t;
 }
 
-/* ========= ROUND CARD ========= */
+export function renderPairings(model) {
+  ensurePairings(model);
 
-export function createRoundCard(round={}, players=[]){
-  const card=document.createElement('div');
-  card.className='round-card';
+  // players UI
+  const ta = document.getElementById("playersInput");
+  ta.value = model.players.join("\n");
+  document.getElementById("playersCount").textContent = `${model.players.length} players`;
 
-  const groups=round.groups?.length?round.groups:makeFoursomes(players);
-  card.dataset.groups=JSON.stringify(groups);
-  card.dataset.lockGroups=round.lockGroups?'1':'0';
+  // rounds UI
+  const container = document.getElementById("roundsContainer");
+  container.innerHTML = "";
 
-  card.innerHTML=`
-    <div class="round-header">
-      <div class="round-header__left">
-        <div class="round-title">Round</div>
-        <div class="round-fields">
-          <label class="field">
-            <span class="field__label">Course</span>
-            <input class="round-course" value="${round.course||''}">
-          </label>
-          <label class="field">
-            <span class="field__label">Date</span>
-            <input type="date" class="round-date" value="${round.date||''}">
-          </label>
-        </div>
-      </div>
-      <div class="round-header__right">
-        <label class="lock-toggle">
-          <input type="checkbox" class="lock-groups" ${card.dataset.lockGroups==='1'?'checked':''}>
-          Lock groups
-        </label>
-      </div>
-    </div>
+  for (let r = 0; r < model.rounds.length; r++) {
+    const round = model.rounds[r];
 
-    <div class="round-summary">
-      <div class="round-summary__chips">
-        <span class="chip"><strong>${players.length}</strong> players</span>
-        <span class="chip"><strong>${groups.length}</strong> groups</span>
-      </div>
-    </div>
+    const wrap = document.createElement("div");
+    wrap.className = "round-card";
 
-    <div class="round-groups"></div>
-  `;
+    const head = document.createElement("div");
+    head.className = "round-head";
 
-  const groupsWrap=card.querySelector('.round-groups');
+    const title = document.createElement("div");
+    title.className = "round-title";
+    title.textContent = round.name || `Round ${r + 1}`;
 
-  renderGroupsUI(card, groupsWrap);
+    const right = document.createElement("div");
+    right.className = "actions";
 
-  card.querySelector('.lock-groups').addEventListener('change',e=>{
-    card.dataset.lockGroups=e.target.checked?'1':'0';
-  });
-
-  return card;
-}
-
-/* ========= GROUPS + PLAYER DRAG ========= */
-
-function renderGroupsUI(card, wrap){
-  const groups=JSON.parse(card.dataset.groups||'[]');
-  wrap.innerHTML='';
-
-  groups.forEach((group,gIdx)=>{
-    const gEl=document.createElement('div');
-    gEl.className='group-pill';
-    gEl.dataset.groupIndex=gIdx;
-    gEl.draggable=true;
-
-    gEl.innerHTML=`<span class="group-pill__label">Group ${gIdx+1}</span>
-      <div class="group-pill__names"></div>`;
-
-    const namesWrap=gEl.querySelector('.group-pill__names');
-
-    group.forEach((name,pIdx)=>{
-      const p=document.createElement('span');
-      p.className='name-chip';
-      p.textContent=name;
-      p.draggable=true;
-      p.dataset.group=gIdx;
-      p.dataset.index=pIdx;
-      namesWrap.appendChild(p);
-
-      p.addEventListener('dragstart',e=>{
-        e.dataTransfer.setData('text/plain',JSON.stringify({
-          type:'player',fromGroup:gIdx,fromIndex:pIdx,name
-        }));
-      });
+    const del = document.createElement("button");
+    del.className = "btn secondary";
+    del.textContent = "Delete round";
+    del.addEventListener("click", () => {
+      model.rounds.splice(r, 1);
+      saveModel(model);
+      renderPairings(model);
     });
 
-    gEl.addEventListener('dragover',e=>e.preventDefault());
+    right.append(del);
+    head.append(title, right);
 
-    gEl.addEventListener('drop',e=>{
-      const data=JSON.parse(e.dataTransfer.getData('text/plain'));
-      if(data.type!=='player')return;
+    const tableWrap = document.createElement("div");
+    tableWrap.className = "table-wrap";
 
-      const groups=JSON.parse(card.dataset.groups);
-      groups[data.fromGroup].splice(data.fromIndex,1);
-      groups[gIdx].push(data.name);
+    const table = document.createElement("table");
+    table.className = "score-table";
 
-      card.dataset.groups=JSON.stringify(groups);
-      renderGroupsUI(card, wrap);
-    });
-    wrap.appendChild(gEl);
-  });
-}
+    const holes = Number(round.holes || 18);
 
-function buildScoreTableBody(round, players, pars = []) {
-  const tbody = document.createElement('tbody');
-  const scores = Array.isArray(round?.scores) ? round.scores : [];
-  const byPlayer = new Map(scores.map((s) => [s?.player, s]));
+    // header
+    const thead = document.createElement("thead");
+    const hr = document.createElement("tr");
+    const thPlayer = document.createElement("th");
+    thPlayer.textContent = "Player";
+    const thHcp = document.createElement("th");
+    thHcp.textContent = "HCP";
+    hr.append(thPlayer, thHcp);
 
-  /* =========================
-     PAR ROW (only meta row)
-     ========================= */
-  const parRow = document.createElement('tr');
-  parRow.className = 'meta-row par-row';
-
-  // Label cell
-  const parLabel = document.createElement('td');
-  parLabel.textContent = 'Par';
-  parLabel.className = 'meta-label';
-  parRow.appendChild(parLabel);
-
-  // Empty Hdcp column
-  parRow.appendChild(document.createElement('td'));
-
-  for (let i = 0; i < 18; i += 1) {
-    const td = document.createElement('td');
-    td.dataset.hole = String(i + 1);
-
-    const inp = document.createElement('input');
-    inp.type = 'number';
-    inp.inputMode = 'numeric';
-    inp.className = 'par-input';
-    inp.value = pars[i] ?? '';
-    inp.placeholder = '';
-
-    td.appendChild(inp);
-    parRow.appendChild(td);
-  }
-
-  // Totals columns (empty for Par row)
-  for (let i = 0; i < 4; i += 1) {
-    parRow.appendChild(document.createElement('td'));
-  }
-
-  tbody.appendChild(parRow);
-
-  /* =========================
-     PLAYER SCORE ROWS
-     ========================= */
-  players.forEach((p) => {
-    const s = byPlayer.get(p) || {
-      player: p,
-      hdcp: 0,
-      holes: Array(18).fill('')
-    };
-
-    const tr = document.createElement('tr');
-    tr.dataset.player = p;
-
-    // Player
-    const tdPlayer = document.createElement('td');
-    tdPlayer.textContent = p;
-    tr.appendChild(tdPlayer);
-
-    // Handicap
-    const tdHdcp = document.createElement('td');
-    const hdcp = document.createElement('input');
-    hdcp.type = 'number';
-    hdcp.inputMode = 'numeric';
-    hdcp.className = 'handicap-input';
-    hdcp.value = String(toNumber(s.hdcp ?? 0));
-    tdHdcp.appendChild(hdcp);
-    tr.appendChild(tdHdcp);
-
-    // Holes 1–18
-    const holes = Array.isArray(s.holes) ? s.holes : [];
-    for (let i = 0; i < 18; i += 1) {
-      const td = document.createElement('td');
-      td.dataset.hole = String(i + 1);
-
-      const inp = document.createElement('input');
-      inp.type = 'number';
-      inp.inputMode = 'numeric';
-      inp.className = 'score-input';
-      inp.value = holes[i] ?? '';
-
-      td.appendChild(inp);
-      tr.appendChild(td);
+    for (let i = 1; i <= holes; i++) {
+      const th = document.createElement("th");
+      th.textContent = i;
+      hr.append(th);
     }
 
-    // Totals
-    const tdOut = document.createElement('td');
-    tdOut.className = 'tot-out';
-    tr.appendChild(tdOut);
+    const thTot = document.createElement("th");
+    thTot.textContent = "Total";
+    hr.append(thTot);
 
-    const tdIn = document.createElement('td');
-    tdIn.className = 'tot-in';
-    tr.appendChild(tdIn);
+    thead.append(hr);
+    table.append(thead);
 
-    const tdGross = document.createElement('td');
-    tdGross.className = 'tot-gross';
-    tr.appendChild(tdGross);
+    // body
+    const tbody = document.createElement("tbody");
 
-    const tdNet = document.createElement('td');
-    tdNet.className = 'tot-net';
-    tr.appendChild(tdNet);
+    // keep data sane
+    round.hcp ??= {};
+    round.scores ??= makeEmptyScores(model.players, holes);
+    // ensure all players exist
+    for (const p of model.players) {
+      round.hcp[p] ??= "";
+      round.scores[p] ??= Array.from({ length: holes }, () => "");
+      if (round.scores[p].length !== holes) {
+        // resize preserving values
+        const next = Array.from({ length: holes }, (_, i) => round.scores[p][i] ?? "");
+        round.scores[p] = next;
+      }
+    }
+    // remove players not in list
+    for (const p of Object.keys(round.scores)) {
+      if (!model.players.includes(p)) delete round.scores[p];
+    }
+    for (const p of Object.keys(round.hcp)) {
+      if (!model.players.includes(p)) delete round.hcp[p];
+    }
 
-    tbody.appendChild(tr);
+    model.players.forEach((pName) => {
+      const tr = document.createElement("tr");
+
+      const tdName = document.createElement("td");
+      tdName.textContent = pName;
+
+      const tdHcp = document.createElement("td");
+      const hcpInput = document.createElement("input");
+      hcpInput.className = "score-input";
+      hcpInput.inputMode = "numeric";
+      hcpInput.placeholder = "—";
+      hcpInput.value = round.hcp[pName] ?? "";
+      hcpInput.addEventListener("input", () => {
+        round.hcp[pName] = hcpInput.value.replace(/[^\d-]/g, "").slice(0, 3);
+        saveModel(model);
+      });
+      tdHcp.append(hcpInput);
+
+      tr.append(tdName, tdHcp);
+
+      const row = round.scores[pName];
+
+      for (let h = 0; h < holes; h++) {
+        const td = document.createElement("td");
+        const inp = document.createElement("input");
+        inp.className = "score-input";
+        inp.inputMode = "numeric";
+        inp.placeholder = "";
+        inp.value = row[h] ?? "";
+        inp.addEventListener("input", () => {
+          // allow blank, otherwise 1-2 digit number
+          const cleaned = inp.value.replace(/[^\d]/g, "").slice(0, 2);
+          inp.value = cleaned;
+          row[h] = cleaned;
+          // update total cell immediately
+          totalCell.textContent = sumRow(row).toString();
+          saveModel(model);
+        });
+        td.append(inp);
+        tr.append(td);
+      }
+
+      const tdTot = document.createElement("td");
+      tdTot.className = "total-cell";
+      const totalCell = document.createElement("span");
+      totalCell.textContent = sumRow(row).toString();
+      tdTot.append(totalCell);
+      tr.append(tdTot);
+
+      tbody.append(tr);
+    });
+
+    table.append(tbody);
+    tableWrap.append(table);
+
+    wrap.append(head, tableWrap);
+    container.append(wrap);
+  }
+
+  saveModel(model);
+}
+
+export function bindPairingsUI(model) {
+  ensurePairings(model);
+
+  document.getElementById("btnApplyPlayers").addEventListener("click", () => {
+    const text = document.getElementById("playersInput").value;
+    model.players = parsePlayers(text);
+
+    // Reconcile rounds to player list
+    for (const round of model.rounds) {
+      const holes = Number(round.holes || 18);
+      round.hcp ??= {};
+      round.scores ??= {};
+      for (const p of model.players) {
+        round.hcp[p] ??= "";
+        round.scores[p] ??= Array.from({ length: holes }, () => "");
+      }
+      for (const p of Object.keys(round.hcp)) if (!model.players.includes(p)) delete round.hcp[p];
+      for (const p of Object.keys(round.scores)) if (!model.players.includes(p)) delete round.scores[p];
+    }
+
+    saveModel(model);
+    renderPairings(model);
   });
 
-  return tbody;
-}
+  document.getElementById("btnCreateRound").addEventListener("click", () => {
+    const name = document.getElementById("roundNameInput").value.trim() || `Round ${model.rounds.length + 1}`;
+    const holes = Number(document.getElementById("holesSelect").value || 18);
 
-// Par/SI row builder
-function buildMetaRow(label, values, inputClass) {
-  const tr = document.createElement('tr');
-  tr.className = 'meta-row';
-  tr.dataset.meta = String(label || '').toLowerCase();
+    model.rounds.push({
+      id: crypto?.randomUUID?.() ?? String(Date.now()),
+      name,
+      holes,
+      hcp: {},
+      scores: makeEmptyScores(model.players, holes),
+    });
 
-  // label cell (shows Par / SI)
-  const tdLabel = document.createElement('td');
-  tdLabel.className = 'meta-label';
-  tdLabel.textContent = label;
-  tr.appendChild(tdLabel);
+    saveModel(model);
+    renderPairings(model);
+  });
 
-  // blank Hdcp column cell for meta rows
-  const tdBlank = document.createElement('td');
-  tdBlank.textContent = '';
-  tr.appendChild(tdBlank);
+  document.getElementById("btnAddRound").addEventListener("click", () => {
+    document.getElementById("roundNameInput").focus();
+  });
 
-  const arr = clamp18(values);
-  for (let i = 1; i <= 18; i += 1) {
-    const td = document.createElement('td');
-    td.dataset.hole = String(i);
-    td.classList.add(i <= 9 ? 'hole-front' : 'hole-back'); // ✅ shading hook
-
-    const inp = document.createElement('input');
-    inp.type = 'number';
-    inp.inputMode = 'numeric';
-    inp.className = inputClass;
-    inp.value = String(arr[i - 1] ?? '');
-
-    td.appendChild(inp);
-    tr.appendChild(td);
-  }
-
-  // Totals columns (empty)
-  for (let k = 0; k < 4; k += 1) {
-    tr.appendChild(document.createElement('td'));
-  }
-
-  return tr;
-}
-
-// -----------------------------
-// Front/Back view toggling
-// -----------------------------
-function setToggleActive(toggleEl, view) {
-  toggleEl.querySelectorAll('button[data-view]').forEach((b) => {
-    b.classList.toggle('is-active', b.getAttribute('data-view') === view);
+  document.getElementById("btnResetScores").addEventListener("click", () => {
+    for (const round of model.rounds) {
+      const holes = Number(round.holes || 18);
+      round.scores = makeEmptyScores(model.players, holes);
+    }
+    saveModel(model);
+    renderPairings(model);
   });
 }
