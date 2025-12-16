@@ -311,6 +311,27 @@ button.secondary{
 }
 
 /* ===========================
+   EMERGENCY FIX: Re-enable tab clicks
+   =========================== */
+
+/* Ensure tabs and parents can receive pointer events */
+.tab-btn,
+.tab-btn *,
+.tabs,
+nav,
+header,
+main {
+  pointer-events: auto !important;
+}
+
+/* In case a wrapper was disabled */
+body,
+#app,
+.container {
+  pointer-events: auto !important;
+}
+
+/* ===========================
    Pairings & Scores – UI Polish Patch
    (Add to bottom of your CSS)
    =========================== */
