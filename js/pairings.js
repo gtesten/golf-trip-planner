@@ -140,6 +140,184 @@ function renderGroupsUI(card, wrap){
       renderGroupsUI(card, wrap);
     });
 
+<<<<<<< HEAD
     wrap.appendChild(gEl);
+=======
+  for (let i = 1; i <= 18; i += 1) {
+    const th = document.createElement('th');
+    th.textContent = String(i);
+    th.dataset.hole = String(i);
+    th.classList.add(i <= 9 ? 'hole-front' : 'hole-back'); // ✅ shading hook
+    tr.appendChild(th);
+  }
+
+  ['Out', 'In', 'Gross', 'Net'].forEach((label) => {
+    const th = document.createElement('th');
+    th.textContent = label;
+    th.className = 'tot-col';
+    tr.appendChild(th);
+  });
+
+  thead.appendChild(tr);
+  return thead;
+}
+
+function buildScoreTableBody(round, players, pars = []) {
+  const tbody = document.createElement('tbody');
+  const scores = Array.isArray(round?.scores) ? round.scores : [];
+  const byPlayer = new Map(scores.map((s) => [s?.player, s]));
+
+  /* =========================
+     PAR ROW (only meta row)
+     ========================= */
+  const parRow = document.createElement('tr');
+  parRow.className = 'meta-row par-row';
+
+  // Label cell
+  const parLabel = document.createElement('td');
+  parLabel.textContent = 'Par';
+  parLabel.className = 'meta-label';
+  parRow.appendChild(parLabel);
+
+  // Empty Hdcp column
+  parRow.appendChild(document.createElement('td'));
+
+  for (let i = 0; i < 18; i += 1) {
+    const td = document.createElement('td');
+    td.dataset.hole = String(i + 1);
+
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.inputMode = 'numeric';
+    inp.className = 'par-input';
+    inp.value = pars[i] ?? '';
+    inp.placeholder = '';
+
+    td.appendChild(inp);
+    parRow.appendChild(td);
+  }
+
+  // Totals columns (empty for Par row)
+  for (let i = 0; i < 4; i += 1) {
+    parRow.appendChild(document.createElement('td'));
+  }
+
+  tbody.appendChild(parRow);
+
+  /* =========================
+     PLAYER SCORE ROWS
+     ========================= */
+  players.forEach((p) => {
+    const s = byPlayer.get(p) || {
+      player: p,
+      hdcp: 0,
+      holes: Array(18).fill('')
+    };
+
+    const tr = document.createElement('tr');
+    tr.dataset.player = p;
+
+    // Player
+    const tdPlayer = document.createElement('td');
+    tdPlayer.textContent = p;
+    tr.appendChild(tdPlayer);
+
+    // Handicap
+    const tdHdcp = document.createElement('td');
+    const hdcp = document.createElement('input');
+    hdcp.type = 'number';
+    hdcp.inputMode = 'numeric';
+    hdcp.className = 'handicap-input';
+    hdcp.value = String(toNumber(s.hdcp ?? 0));
+    tdHdcp.appendChild(hdcp);
+    tr.appendChild(tdHdcp);
+
+    // Holes 1–18
+    const holes = Array.isArray(s.holes) ? s.holes : [];
+    for (let i = 0; i < 18; i += 1) {
+      const td = document.createElement('td');
+      td.dataset.hole = String(i + 1);
+
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.inputMode = 'numeric';
+      inp.className = 'score-input';
+      inp.value = holes[i] ?? '';
+
+      td.appendChild(inp);
+      tr.appendChild(td);
+    }
+
+    // Totals
+    const tdOut = document.createElement('td');
+    tdOut.className = 'tot-out';
+    tr.appendChild(tdOut);
+
+    const tdIn = document.createElement('td');
+    tdIn.className = 'tot-in';
+    tr.appendChild(tdIn);
+
+    const tdGross = document.createElement('td');
+    tdGross.className = 'tot-gross';
+    tr.appendChild(tdGross);
+
+    const tdNet = document.createElement('td');
+    tdNet.className = 'tot-net';
+    tr.appendChild(tdNet);
+
+    tbody.appendChild(tr);
+  });
+
+  return tbody;
+}
+
+// Par/SI row builder
+function buildMetaRow(label, values, inputClass) {
+  const tr = document.createElement('tr');
+  tr.className = 'meta-row';
+  tr.dataset.meta = String(label || '').toLowerCase();
+
+  // label cell (shows Par / SI)
+  const tdLabel = document.createElement('td');
+  tdLabel.className = 'meta-label';
+  tdLabel.textContent = label;
+  tr.appendChild(tdLabel);
+
+  // blank Hdcp column cell for meta rows
+  const tdBlank = document.createElement('td');
+  tdBlank.textContent = '';
+  tr.appendChild(tdBlank);
+
+  const arr = clamp18(values);
+  for (let i = 1; i <= 18; i += 1) {
+    const td = document.createElement('td');
+    td.dataset.hole = String(i);
+    td.classList.add(i <= 9 ? 'hole-front' : 'hole-back'); // ✅ shading hook
+
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.inputMode = 'numeric';
+    inp.className = inputClass;
+    inp.value = String(arr[i - 1] ?? '');
+
+    td.appendChild(inp);
+    tr.appendChild(td);
+  }
+
+  // Totals columns (empty)
+  for (let k = 0; k < 4; k += 1) {
+    tr.appendChild(document.createElement('td'));
+  }
+
+  return tr;
+}
+
+// -----------------------------
+// Front/Back view toggling
+// -----------------------------
+function setToggleActive(toggleEl, view) {
+  toggleEl.querySelectorAll('button[data-view]').forEach((b) => {
+    b.classList.toggle('is-active', b.getAttribute('data-view') === view);
+>>>>>>> bcb7d00 (Fix tabs not clickable y restoring pointer-events via CSS)
   });
 }
