@@ -1,5 +1,3 @@
-window.__GTP_APP_LOADED__ = true; console.log("[GTP] app.mjs running");
-
 // js/app.mjs
 'use strict';
 
@@ -10,6 +8,15 @@ import {
   makeFoursomes
 } from './pairings.js';
 import { initTabs } from './tabs.js';
+
+window.__GTP_APP_LOADED__ = true;
+console.log("[GTP] app.mjs running");
+
+window.addEventListener("DOMContentLoaded", () => {
+  // initTabs returns true/false so we can see if it found markup
+  const ok = initTabs({ debug: true });
+  console.log("[GTP] initTabs ok?", ok);
+});
 
 const STORAGE_KEY = 'golfTripPlanner_pairings_v2';
 
