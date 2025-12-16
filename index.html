@@ -8,11 +8,6 @@
 
   <!-- Update path if your CSS file name/location differs -->
   <link rel="stylesheet" href="./css/styles.css" />
-
-  <style>
-    /* Safety: ensures panel switching is visible even if CSS is missing */
-    .is-hidden { display: none !important; }
-  </style>
 </head>
 
 <body>
@@ -34,76 +29,61 @@
       </div>
 
       <!-- Panels -->
-      <div class="tab-panels">
+<div class="tab-panels">
 
-        <!-- Trip Details -->
-        <div class="tab-panel" data-tab-panel="detailsTab">
-          <h2>Trip Details</h2>
-
-          <!-- Keep these IDs inside the details panel so tabs can hide/show them -->
-          <div class="form-grid">
-            <div class="form-row">
-              <label for="tripName">Trip Name</label>
-              <input id="tripName" name="tripName" type="text" placeholder="e.g., Forest Dunes 2026" />
-            </div>
-
-            <div class="form-row">
-              <label for="tripLocation">Location</label>
-              <input id="tripLocation" name="tripLocation" type="text" placeholder="City / Resort" />
-            </div>
-
-            <div class="form-row">
-              <label for="tripDates">Dates</label>
-              <input id="tripDates" name="tripDates" type="text" placeholder="MM/DD – MM/DD" />
-            </div>
-
-            <div class="form-row">
-              <label for="playersInput">Players (one per line)</label>
-              <textarea id="playersInput" name="playersInput" rows="8" placeholder="Glenn&#10;Player 2&#10;Player 3"></textarea>
-            </div>
-          </div>
-
-          <!-- If you had more Trip Details content before, paste it below INSIDE this panel -->
-          <div id="tripDetailsExtra"></div>
-        </div>
-
-        <!-- Itinerary -->
-        <div class="tab-panel is-hidden" data-tab-panel="itineraryTab">
-          <h2>Itinerary</h2>
-          <p>If your itinerary UI already exists elsewhere in your old index.html, cut/paste it into this panel.</p>
-
-          <!-- Safe target containers (optional) -->
-          <div id="itineraryContainer"></div>
-        </div>
-
-        <!-- Pairings & Scores -->
-        <div class="tab-panel is-hidden" data-tab-panel="pairingsTab">
-          <h2>Pairings &amp; Scores</h2>
-          <p>Cut/paste your Pairings &amp; Scores section into this panel.</p>
-
-          <!-- Common containers your existing JS might be using -->
-          <div id="pairingsContainer"></div>
-          <div id="roundsContainer"></div>
-        </div>
-
-        <!-- Expenses & Docs -->
-        <div class="tab-panel is-hidden" data-tab-panel="expensesTab">
-          <h2>Expenses &amp; Docs</h2>
-          <p>Cut/paste your Expenses/Docs UI into this panel.</p>
-
-          <div id="expensesContainer"></div>
-          <div id="docsContainer"></div>
-        </div>
-
-        <!-- Sharing -->
-        <div class="tab-panel is-hidden" data-tab-panel="sharingTab">
-          <h2>Sharing</h2>
-          <p>Cut/paste your Sharing section into this panel.</p>
-
-          <div id="sharingContainer"></div>
-        </div>
-
+  <div class="tab-panel" data-tab-panel="detailsTab">
+    <h2>Trip Details</h2>
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="tripName">Trip Name</label>
+        <input id="tripName" name="tripName" type="text" placeholder="e.g., Forest Dunes 2026" />
       </div>
+
+      <div class="form-row">
+        <label for="tripLocation">Location</label>
+        <input id="tripLocation" name="tripLocation" type="text" placeholder="City / Resort" />
+      </div>
+
+      <div class="form-row">
+        <label for="tripDates">Dates</label>
+        <input id="tripDates" name="tripDates" type="text" placeholder="MM/DD – MM/DD" />
+      </div>
+
+      <div class="form-row">
+        <label for="playersInput">Players (one per line)</label>
+        <textarea id="playersInput" name="playersInput" rows="8"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMPORTANT: use hidden attribute -->
+  <div class="tab-panel" data-tab-panel="itineraryTab" hidden>
+    <h2>Itinerary</h2>
+
+    <!-- ✅ Your itinerary.js expects THIS id -->
+    <div id="itineraryDaysContainer"></div>
+  </div>
+
+  <div class="tab-panel" data-tab-panel="pairingsTab" hidden>
+    <h2>Pairings &amp; Scores</h2>
+
+    <!-- ✅ pairings.js uses roundsContainer -->
+    <div id="roundsContainer"></div>
+  </div>
+
+  <div class="tab-panel" data-tab-panel="expensesTab" hidden>
+    <h2>Expenses &amp; Docs</h2>
+    <div id="expensesContainer"></div>
+    <div id="docsContainer"></div>
+  </div>
+
+  <div class="tab-panel" data-tab-panel="sharingTab" hidden>
+    <h2>Sharing</h2>
+    <div id="sharingContainer"></div>
+  </div>
+
+</div>
+
     </section>
   </main>
 
