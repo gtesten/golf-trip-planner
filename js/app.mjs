@@ -18,15 +18,17 @@ import {
   getPlayersFromTextarea,
   makeFoursomes
 } from './pairings.js';
-import { initTabs } from './tabs.js';
-
-window.__GTP_APP_LOADED__ = true;
-console.log("[GTP] app.mjs running");
+import { initTabs } from "./tabs.js";
 
 window.addEventListener("DOMContentLoaded", () => {
-  // initTabs returns true/false so we can see if it found markup
-  const ok = initTabs({ debug: true });
-  console.log("[GTP] initTabs ok?", ok);
+  // Try now, then retry a few times in case UI renders after load
+  let tries = 0;
+  const maxTries = 25; // ~5 seconds
+  const t = setInterval(() => {
+    tries += 1;
+    const ok = initTabs({ debug: true });
+    if (ok || tries >= maxTries) clearInterval(t);
+  }, 200);
 });
 
 const STORAGE_KEY = 'golfTripPlanner_pairings_v2';

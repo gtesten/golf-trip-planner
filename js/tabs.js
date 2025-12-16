@@ -143,31 +143,62 @@ function pickDefaultActive({ tabs, panelByName }) {
 }
 
 export function initTabs(options = {}) {
-  const {
-    root = document,
-    activeClass = "is-active",
-    hiddenClass = "is-hidden",
-    debug = true,
-  } = options;
+  // Add near the top of tabs.js (or inside initTabs before adding listeners)
+// Bind listeners only once (safe for retries)
+if (!window.__GTP_TABS_BOUND__) {
+  window.__GTP_TABS_BOUND__ = true;
 
-  const { tabs, panelByName } = buildMapping(root);
+  document.addEventListener("click", (e) => {
+    const raw = e.target.closest('[data-tab],[data-target],[aria-controls],[role="tab"],a[href^="#"]');
+    if (!raw) return;
 
-  if (!tabs.length || !panelByName.size) {
-    if (debug) {
-      console.warn(
-        "[tabs] No tabs/panels found. Found tabs:",
-        tabs.length,
-        "Found mapped panels:",
-        panelByName.size,
-        "Tip: tabs can use data-tab, data-target, aria-controls, or href='#id'. Panels can use id or data-tab-panel."
-      );
+    const name =
+      raw.getAttribute("data-tab") ||
+      raw.getAttribute("data-target") ||
+      raw.getAttribute("aria-controls") ||
+      (raw.getAttribute("href")?.startsWith("#") ? raw.getAttribute("href").slice(1) : null);
+
+    if (!name) return;
+
+    // Prevent hash jump if this is a # link
+    if (raw.tagName === "A" && raw.getAttribute("href")?.startsWith("#")) e.preventDefault();
+
+    // Re-scan *at click time* (covers tabs/panels added later)
+    const tabs = Array.from(document.querySelectorAll('[data-tab],[data-target],[aria-controls],[role="tab"],a[href^="#"]'));
+    const panel =
+      document.querySelector(`[data-tab-panel="${CSS.escape(name)}"]`) ||
+      document.getElementById(name);
+
+    if (!panel) {
+      console.warn("[tabs] Clicked tab name but no matching panel found:", name);
+      return;
     }
-    return false;
-  }
 
-  if (debug) {
-    console.log("[tabs] found", tabs.length, "tabs and", panelByName.size, "panels");
-  }
+    // Hide/show panels
+    const panels = Array.from(document.querySelectorAll('[data-tab-panel],[role="tabpanel"],[id]'));
+    panels.forEach((p) => {
+      const match = p.getAttribute("data-tab-panel") === name || p.id === name;
+      if (match) {
+        p.classList.remove("is-hidden");
+        p.removeAttribute("hidden");
+      } else if (p.hasAttribute("data-tab-panel") || p.getAttribute("role") === "tabpanel") {
+        p.classList.add("is-hidden");
+        p.setAttribute("hidden", "");
+      }
+    });
+
+    // Mark active tab (best-effort)
+    tabs.forEach((t) => {
+      const tName =
+        t.getAttribute("data-tab") ||
+        t.getAttribute("data-target") ||
+        t.getAttribute("aria-controls") ||
+        (t.getAttribute("href")?.startsWith("#") ? t.getAttribute("href").slice(1) : null);
+      t.classList.toggle("is-active", tName === name);
+      t.setAttribute("aria-selected", String(tName === name));
+    });
+  }, true);
+}
 
   // Ensure panels have hidden state except active
   const defaultActive = pickDefaultActive({ tabs, panelByName });
