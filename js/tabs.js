@@ -1,22 +1,19 @@
 // js/tabs.js
-// Robust tabs that work with:
+// Tabs supported:
 // - data-tab="name"
 // - data-target="name"
 // - aria-controls="name"
 // - <a href="#name">
-// Panels can be:
-// - id="name"
+// Panels supported:
 // - data-tab-panel="name"
-//
-// Adds/removes:
-// - .is-active on tabs
-// - [hidden] + .is-hidden on panels
+// - role="tabpanel"
+// - id="name" ONLY if referenced by a tab
 
-const DEFAULT_TAB_SELECTOR =
+const TAB_SELECTOR =
   '[data-tab],[data-target],[aria-controls],[role="tab"],a[href^="#"]';
 
-const DEFAULT_PANEL_SELECTOR =
-  '[data-tab-panel],[role="tabpanel"],[id]';
+const EXPLICIT_PANEL_SELECTOR =
+  '[data-tab-panel],[role="tabpanel"]';
 
 function isHashLink(el) {
   const href = el?.getAttribute?.("href");
@@ -32,33 +29,56 @@ function getTabName(el) {
   );
 }
 
-function buildState(root, tabSelector, panelSelector) {
-  const tabs = Array.from(root.querySelectorAll(tabSelector));
-  const panels = Array.from(root.querySelectorAll(panelSelector));
+function buildState(root) {
+  const tabs = Array.from(root.querySelectorAll(TAB_SELECTOR));
 
-  // Map panel name -> element (prefers explicit data-tab-panel / role=tabpanel; falls back to id)
+  // Start with explicit panels only
+  const explicitPanels = Array.from(root.querySelectorAll(EXPLICIT_PANEL_SELECTOR));
   const panelByName = new Map();
-  for (const p of panels) {
+
+  for (const p of explicitPanels) {
     const name = p.getAttribute("data-tab-panel") || p.id;
     if (name) panelByName.set(name, p);
   }
 
-  // Also map any id panels referenced by tabs (if not already)
+  // Add ONLY id-panels that are referenced by tabs
   for (const t of tabs) {
     const name = getTabName(t);
-    if (!name) continue;
-    if (!panelByName.has(name)) {
-      const byId = root.getElementById
-        ? root.getElementById(name)
-        : document.getElementById(name);
-      if (byId) panelByName.set(name, byId);
-    }
+    if (!name || panelByName.has(name)) continue;
+
+    const byId = document.getElementById(name);
+    if (byId) panelByName.set(name, byId);
   }
 
   return { tabs, panelByName };
 }
 
-function pickDefaultActive({ panelByName, tabs }) {
+function setActive({ name, activeClass, hiddenClass }) {
+  const { tabs, panelByName } = buildState(document);
+
+  if (!name || !panelByName.has(name)) return false;
+
+  // Tabs
+  for (const t of tabs) {
+    const tName = getTabName(t);
+    const isActive = tName === name;
+    t.classList.toggle(activeClass, isActive);
+    t.setAttribute("aria-selected", String(isActive));
+    t.setAttribute("tabindex", isActive ? "0" : "-1");
+  }
+
+  // Panels (ONLY mapped panels)
+  for (const [pName, p] of panelByName.entries()) {
+    const isActive = pName === name;
+    if (hiddenClass) p.classList.toggle(hiddenClass, !isActive);
+    p.toggleAttribute("hidden", !isActive);
+    if (!p.getAttribute("role")) p.setAttribute("role", "tabpanel");
+  }
+
+  return true;
+}
+
+function pickDefaultActive({ tabs, panelByName }) {
   const hash = (window.location.hash || "").replace("#", "");
   if (hash && panelByName.has(hash)) return hash;
 
@@ -76,91 +96,45 @@ function pickDefaultActive({ panelByName, tabs }) {
   return panelByName.keys().next().value || null;
 }
 
-function setActive({ root, tabSelector, panelSelector, name, activeClass, hiddenClass }) {
-  const { tabs, panelByName } = buildState(root, tabSelector, panelSelector);
-
-  if (!name || !panelByName.has(name)) return false;
-
-  // Tabs
-  for (const t of tabs) {
-    const tName = getTabName(t);
-    const isActive = tName === name;
-    t.classList.toggle(activeClass, isActive);
-    t.setAttribute("aria-selected", String(isActive));
-    t.setAttribute("tabindex", isActive ? "0" : "-1");
-  }
-
-  // Panels (only hide panels that are actually part of our mapping)
-  for (const [pName, p] of panelByName.entries()) {
-    const isActive = pName === name;
-    if (hiddenClass) p.classList.toggle(hiddenClass, !isActive);
-    p.toggleAttribute("hidden", !isActive);
-    if (!p.getAttribute("role")) p.setAttribute("role", "tabpanel");
-  }
-
-  return true;
-}
-
 export function initTabs(options = {}) {
-  const root = options.root || document;
-  const tabSelector = options.tabSelector || DEFAULT_TAB_SELECTOR;
-  const panelSelector = options.panelSelector || DEFAULT_PANEL_SELECTOR;
   const activeClass = options.activeClass || "is-active";
   const hiddenClass = options.hiddenClass || "is-hidden";
   const debug = options.debug ?? true;
 
-  // Bind click handler once
+  // Bind once
   if (!window.__GTP_TABS_BOUND__) {
     window.__GTP_TABS_BOUND__ = true;
 
     document.addEventListener(
       "click",
       (e) => {
-        const tabEl = e.target.closest(tabSelector);
+        const tabEl = e.target.closest(TAB_SELECTOR);
         if (!tabEl) return;
 
         const name = getTabName(tabEl);
         if (!name) return;
 
-        // Prevent the hash jump if it's an <a href="#...">
         if (tabEl.tagName === "A" && isHashLink(tabEl)) e.preventDefault();
 
-        const ok = setActive({
-          root,
-          tabSelector,
-          panelSelector,
-          name,
-          activeClass,
-          hiddenClass,
-        });
-
-        if (!ok && debug) {
-          console.warn("[tabs] Clicked tab but no matching panel found for:", name);
-        }
+        const ok = setActive({ name, activeClass, hiddenClass });
+        if (!ok && debug) console.warn("[tabs] No matching panel for:", name);
       },
-      true // capture (helps with tricky propagation)
+      true
     );
   }
 
-  // Initial scan + default activation
-  const { tabs, panelByName } = buildState(root, tabSelector, panelSelector);
+  // Initial activation
+  const { tabs, panelByName } = buildState(document);
 
   if (debug) console.log("[tabs] found", tabs.length, "tabs and", panelByName.size, "panels");
 
   if (!tabs.length || !panelByName.size) {
-    if (debug) {
-      console.warn(
-        "[tabs] No tabs/panels found. Your markup must include data-tab/data-target/aria-controls or href='#id' and panels with id or data-tab-panel."
-      );
-    }
+    if (debug) console.warn("[tabs] No tabs/panels found (based on referenced panels only).");
     return false;
   }
 
-  const defaultActive = pickDefaultActive({ panelByName, tabs });
-  if (defaultActive) {
-    setActive({ root, tabSelector, panelSelector, name: defaultActive, activeClass, hiddenClass });
-    return true;
-  }
+  const def = pickDefaultActive({ tabs, panelByName });
+  if (def) return setActive({ name: def, activeClass, hiddenClass });
 
   return false;
 }
