@@ -139,27 +139,8 @@ function renderGroupsUI(card, wrap){
       card.dataset.groups=JSON.stringify(groups);
       renderGroupsUI(card, wrap);
     });
-
-<<<<<<< HEAD
     wrap.appendChild(gEl);
-=======
-  for (let i = 1; i <= 18; i += 1) {
-    const th = document.createElement('th');
-    th.textContent = String(i);
-    th.dataset.hole = String(i);
-    th.classList.add(i <= 9 ? 'hole-front' : 'hole-back'); // ✅ shading hook
-    tr.appendChild(th);
-  }
-
-  ['Out', 'In', 'Gross', 'Net'].forEach((label) => {
-    const th = document.createElement('th');
-    th.textContent = label;
-    th.className = 'tot-col';
-    tr.appendChild(th);
   });
-
-  thead.appendChild(tr);
-  return thead;
 }
 
 function buildScoreTableBody(round, players, pars = []) {
