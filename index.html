@@ -310,14 +310,41 @@
       <button id="debugBtn" class="secondary">🐛 Log Current Trip</button>
     </section>
 
-    <section>
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="detailsTab">Trip Details</button>
-        <button class="tab-btn" data-tab="itineraryTab">Itinerary</button>
-        <button class="tab-btn" data-tab="pairingsTab">Pairings &amp; Scores</button>
-        <button class="tab-btn" data-tab="expensesTab">Expenses &amp; Docs</button>
-        <button class="tab-btn" data-tab="sharingTab">Sharing</button>
-      </div>
+<section>
+  <div class="tabs" data-tabs-root>
+    <button class="tab-btn active" data-tab="detailsTab">Trip Details</button>
+    <button class="tab-btn" data-tab="itineraryTab">Itinerary</button>
+    <button class="tab-btn" data-tab="pairingsTab">Pairings &amp; Scores</button>
+    <button class="tab-btn" data-tab="expensesTab">Expenses &amp; Docs</button>
+    <button class="tab-btn" data-tab="sharingTab">Sharing</button>
+  </div>
+
+  <!-- 👇 ADD THESE PANELS NEXT -->
+</section>
+<div class="tab-panels">
+
+  <div class="tab-panel" data-tab-panel="detailsTab">
+    <!-- MOVE/PASTE your existing Trip Details markup here -->
+  </div>
+
+  <div class="tab-panel is-hidden" data-tab-panel="itineraryTab">
+    <!-- MOVE/PASTE your Itinerary markup here -->
+  </div>
+
+  <div class="tab-panel is-hidden" data-tab-panel="pairingsTab">
+    <!-- MOVE/PASTE your Pairings & Scores markup here -->
+  </div>
+
+  <div class="tab-panel is-hidden" data-tab-panel="expensesTab">
+    <!-- MOVE/PASTE your Expenses & Docs markup here -->
+  </div>
+
+  <div class="tab-panel is-hidden" data-tab-panel="sharingTab">
+    <!-- MOVE/PASTE your Sharing markup here -->
+  </div>
+
+</div>
+
 
       <!-- Trip Details -->
       <div class="tab-panel active" id="detailsTab">

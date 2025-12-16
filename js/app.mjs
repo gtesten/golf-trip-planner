@@ -9,6 +9,12 @@ document.addEventListener(
   true // CAPTURE: logs even if something stops propagation
 );
 
+import { initTabs } from "./tabs.js";
+
+window.addEventListener("DOMContentLoaded", () => {
+  initTabs();
+});
+
 // js/app.mjs
 'use strict';
 
@@ -18,8 +24,6 @@ import {
   getPlayersFromTextarea,
   makeFoursomes
 } from './pairings.js';
-
-import { initTabs } from "./tabs.js";
 
 window.__GTP_APP_LOADED__ = true;
 console.log("[GTP] app.mjs running");
