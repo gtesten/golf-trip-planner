@@ -403,3 +403,44 @@ code{
 .badge.neg{ }
 
 .table-wrap { max-height: 520px; } /* keeps giant tables from feeling endless */
+/* Round view toggle (Score Entry / Leaderboard) */
+.round-toggle{
+  display:flex;
+  gap:8px;
+  margin: 10px 0 12px;
+}
+.round-toggle .btn{
+  padding: 8px 10px;
+}
+.round-toggle .btn.active{
+  outline: 2px solid rgba(148,163,184,.25);
+}
+.leaderboard{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.leader-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:10px 12px;
+  border-radius: 14px;
+  border:1px solid rgba(148,163,184,.22);
+  background: rgba(255,255,255,.04);
+}
+.leader-left{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.leader-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.leader-mono{
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+}

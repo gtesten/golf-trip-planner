@@ -1,7 +1,8 @@
 import { saveModel } from "./storage.js";
 
 export function ensurePairings(model) {
-  model.ui ??= { playersApplied: false, openRoundId: null };
+  model.ui ??= { playersApplied: false, openRoundId: null, roundViews: {} };
+  model.ui.roundViews ??= {};
   model.players ??= [];
   model.rounds ??= [];
 }
@@ -27,7 +28,7 @@ function ensurePar(round, holes) {
   }
 }
 
-/** IMPORTANT: ignore "" (empty) so blanks don't count as 0 */
+/** IMPORTANT: ignore "" so blanks don't count as 0 */
 function sumNums(arr, fromIdx, toIdxExclusive) {
   let t = 0;
   for (let i = fromIdx; i < toIdxExclusive; i++) {
@@ -180,6 +181,9 @@ export function renderPairings(model) {
     for (const p of Object.keys(round.scores)) if (!model.players.includes(p)) delete round.scores[p];
     for (const p of Object.keys(round.hcp)) if (!model.players.includes(p)) delete round.hcp[p];
 
+    // default view per round
+    if (!model.ui.roundViews[round.id]) model.ui.roundViews[round.id] = "scores";
+
     const wrap = document.createElement("div");
     wrap.className = "round-card";
 
@@ -204,10 +208,9 @@ export function renderPairings(model) {
     pillHoles.className = "pill";
     pillHoles.innerHTML = `<strong>${holes}</strong> holes`;
 
-    const parTot = sumNums(round.par, 0, holes);
     const pillPar = document.createElement("span");
     pillPar.className = "pill";
-    pillPar.innerHTML = `<strong>${Number.isFinite(parTot) ? parTot : 0}</strong> par`;
+    pillPar.innerHTML = `<strong>${sumNums(round.par, 0, holes)}</strong> par`;
 
     left.append(title, pillHoles, pillPar);
 
@@ -234,6 +237,7 @@ export function renderPairings(model) {
     del.textContent = "Delete";
     del.addEventListener("click", () => {
       model.rounds.splice(r, 1);
+      delete model.ui.roundViews[round.id];
       if (model.ui.openRoundId === round.id) model.ui.openRoundId = null;
       saveModel(model);
       renderPairings(model);
@@ -248,7 +252,7 @@ export function renderPairings(model) {
     body.style.display = isOpen ? "block" : "none";
     body.style.marginTop = "10px";
 
-    // Snapshot card (LIVE updated)
+    // Snapshot
     const lb = document.createElement("div");
     lb.className = "card";
     lb.innerHTML = `
@@ -256,13 +260,43 @@ export function renderPairings(model) {
       <div data-snapshot="${round.id}">${renderSnapshotText(model, round, holes)}</div>
     `;
 
+    // Toggle
+    const toggle = document.createElement("div");
+    toggle.className = "round-toggle";
+
+    const btnScores = document.createElement("button");
+    btnScores.className = "btn secondary";
+    btnScores.textContent = "Score Entry";
+
+    const btnBoard = document.createElement("button");
+    btnBoard.className = "btn secondary";
+    btnBoard.textContent = "Leaderboard";
+
+    const setView = (view) => {
+      model.ui.roundViews[round.id] = view;
+      saveModel(model);
+      // just flip visibility
+      scoresWrap.style.display = view === "scores" ? "block" : "none";
+      boardWrap.style.display = view === "leaderboard" ? "block" : "none";
+      btnScores.classList.toggle("active", view === "scores");
+      btnBoard.classList.toggle("active", view === "leaderboard");
+    };
+
+    btnScores.addEventListener("click", () => setView("scores"));
+    btnBoard.addEventListener("click", () => setView("leaderboard"));
+
+    toggle.append(btnScores, btnBoard);
+
+    // Score Entry (table)
+    const scoresWrap = document.createElement("div");
+    scoresWrap.style.display = "block";
+
     const tableWrap = document.createElement("div");
     tableWrap.className = "table-wrap";
 
     const table = document.createElement("table");
     table.className = "score-table";
 
-    // Header
     const thead = document.createElement("thead");
     const hr = document.createElement("tr");
 
@@ -312,8 +346,7 @@ export function renderPairings(model) {
         inp.value = cleaned;
         round.par[h] = cleaned;
         saveModel(model);
-        // simple/robust: rerender so all vs-par badges recalc correctly
-        renderPairings(model);
+        renderPairings(model); // easiest: re-render so all vs-par recalcs
       });
       td.append(inp);
       trPar.append(td);
@@ -340,10 +373,11 @@ export function renderPairings(model) {
     refreshParTotals();
     tbody.append(trPar);
 
-    // helper to refresh snapshot only
     const refreshSnapshot = () => {
       const node = container.querySelector(`[data-snapshot="${round.id}"]`);
       if (node) node.innerHTML = renderSnapshotText(model, round, holes);
+      // also refresh leaderboard view live
+      renderLeaderboard();
     };
 
     // Player rows
@@ -376,8 +410,7 @@ export function renderPairings(model) {
         outSpan.textContent = String(out);
         if (holes === 18) inSpan.textContent = String(inn);
         totSpan.textContent = filled > 0 ? String(tot) : "—";
-        const txt = formatVsPar(vs);
-        vsSpan.textContent = txt;
+        vsSpan.textContent = formatVsPar(vs);
         vsSpan.className = `badge ${vsParClass(vs)}`;
       }
 
@@ -393,7 +426,7 @@ export function renderPairings(model) {
           scores[h] = cleaned;
           refreshRowTotals();
           saveModel(model);
-          refreshSnapshot(); // ✅ live update snapshot
+          refreshSnapshot();
         });
         td.append(inp);
         tr.append(td);
@@ -430,9 +463,65 @@ export function renderPairings(model) {
     tableWrap.append(table);
     wireGridNavigation(tableWrap);
 
-    body.append(lb, tableWrap);
+    scoresWrap.append(tableWrap);
+
+    // Leaderboard view (simple for now; step 2 will enhance with Thru/Net)
+    const boardWrap = document.createElement("div");
+    boardWrap.style.display = "none";
+
+    const board = document.createElement("div");
+    board.className = "leaderboard";
+
+    const renderLeaderboard = () => {
+      board.innerHTML = "";
+
+      const rows = model.players
+        .map(p => ({ p, ...computePlayerTotals(round, p, holes) }))
+        .filter(x => x.filled > 0)
+        .sort((a, b) => a.tot - b.tot);
+
+      if (!rows.length) {
+        const empty = document.createElement("div");
+        empty.className = "muted small";
+        empty.textContent = "No scores yet. Enter scores to see standings.";
+        board.append(empty);
+        return;
+      }
+
+      rows.forEach((x, idx) => {
+        const row = document.createElement("div");
+        row.className = "leader-row";
+
+        const left = document.createElement("div");
+        left.className = "leader-left";
+        left.innerHTML = `<div><b>${idx + 1}. ${x.p}</b></div><div class="muted small">${holes === 18 ? `OUT ${x.out} • IN ${x.inn}` : `OUT ${x.out}`}</div>`;
+
+        const right = document.createElement("div");
+        right.className = "leader-right";
+
+        const total = document.createElement("div");
+        total.className = "leader-mono";
+        total.textContent = String(x.tot);
+
+        const vs = document.createElement("div");
+        vs.className = `badge ${vsParClass(x.vs)}`;
+        vs.textContent = formatVsPar(x.vs);
+
+        right.append(total, vs);
+        row.append(left, right);
+        board.append(row);
+      });
+    };
+
+    renderLeaderboard();
+    boardWrap.append(board);
+
+    body.append(lb, toggle, scoresWrap, boardWrap);
     wrap.append(head, body);
     container.append(wrap);
+
+    // Initialize view buttons & visibility
+    setView(model.ui.roundViews[round.id]);
   }
 
   saveModel(model);
@@ -469,6 +558,7 @@ export function bindPairingsUI(model) {
 
     model.rounds.push(newRound);
     model.ui.openRoundId = newRound.id;
+    model.ui.roundViews[newRound.id] = "scores";
     saveModel(model);
     renderPairings(model);
     nameEl.value = "";
