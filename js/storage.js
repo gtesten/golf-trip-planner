@@ -11,7 +11,9 @@ export function loadModel(defaultModel) {
 
 export function saveModel(model) {
   localStorage.setItem(KEY, JSON.stringify(model));
-  window.dispatchEvent(new CustomEvent("gtp:model:changed", { detail: model }));
+  queueMicrotask(() => {
+    window.dispatchEvent(new CustomEvent("gtp:model:changed", { detail: model }));
+  });
 }
 
 export function resetModel() {

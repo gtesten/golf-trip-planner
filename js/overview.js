@@ -1,5 +1,3 @@
-import { saveModel } from "./storage.js";
-
 function safeLink(url) {
   if (!url) return "";
   try {
@@ -71,7 +69,6 @@ export function renderOverview(model) {
   `;
   root.appendChild(c4);
 
-  saveModel(model);
 }
 
 export function bindOverviewUI(model) {
