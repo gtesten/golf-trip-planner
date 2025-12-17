@@ -1,18 +1,17 @@
 const KEY = "gtp:model:v2";
-const SB_KEY = "gtp:supabase:v1";
 
-export function loadModel() {
+export function loadModel(defaultModel) {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
+    return raw ? JSON.parse(raw) : structuredClone(defaultModel);
   } catch {
-    return null;
+    return structuredClone(defaultModel);
   }
 }
 
 export function saveModel(model) {
   localStorage.setItem(KEY, JSON.stringify(model));
+  window.dispatchEvent(new CustomEvent("gtp:model:changed", { detail: model }));
 }
 
 export function resetModel() {

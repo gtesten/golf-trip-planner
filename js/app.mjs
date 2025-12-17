@@ -63,6 +63,11 @@ function refreshSupabaseInputs() {
 }
 refreshSupabaseInputs();
 
+// Keep Overview in sync with edits anywhere (Trip Details, Itinerary, Pairings, etc.)
+window.addEventListener("gtp:model:changed", (e) => {
+  renderOverview(e.detail);
+});
+
 btnSaveSupabase.addEventListener("click", async () => {
   saveSupabaseConfig({ url: sbUrl.value.trim(), anon: sbAnon.value.trim() });
   refreshSupabaseInputs();
