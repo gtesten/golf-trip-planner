@@ -445,3 +445,4 @@ code{
   font-weight: 900;
 }
 .leader-right .leader-mono{ min-width: 58px; text-align:right; }
+.round-toggle + .round-toggle { margin-top: -2px; opacity: .98; }

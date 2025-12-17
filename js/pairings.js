@@ -28,7 +28,6 @@ function ensurePar(round, holes) {
   }
 }
 
-/** IMPORTANT: ignore "" so blanks don't count as 0 */
 function sumNums(arr, fromIdx, toIdxExclusive) {
   let t = 0;
   for (let i = fromIdx; i < toIdxExclusive; i++) {
@@ -65,6 +64,36 @@ function vsParClass(delta) {
   return delta > 0 ? "pos" : "neg";
 }
 
+/** PAR is only "ready" if every hole has a valid 3–6 value */
+function isParComplete(round, holes) {
+  const par = round.par || [];
+  for (let i = 0; i < holes; i++) {
+    const v = par[i];
+    if (v === "" || v == null) return false;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 3 || n > 6) return false;
+  }
+  return true;
+}
+
+// Reasonable default templates (not course-specific, but great for quick scoring)
+function buildParTemplate(totalPar, holes) {
+  if (holes !== 18) {
+    if (totalPar === 36) return [4,4,3,4,4,3,4,5,5];
+    if (totalPar === 35) return [4,4,3,4,4,3,4,5,4];
+    if (totalPar === 34) return [4,4,3,4,4,3,4,4,4];
+    return Array.from({ length: holes }, () => 4);
+  }
+
+  if (totalPar === 72) return [4,4,3,4,4,3,4,5,5, 4,4,3,5,4,4,3,4,5];
+  if (totalPar === 71) return [4,4,3,4,4,3,4,5,5, 4,4,3,5,4,4,3,4,4];
+  if (totalPar === 70) return [4,4,3,4,4,3,4,5,4, 4,4,3,5,4,4,3,4,4];
+  if (totalPar === 73) return [4,4,3,4,5,3,4,5,5, 4,4,3,5,4,4,3,5,5];
+  if (totalPar === 74) return [4,4,3,4,5,3,4,5,5, 4,4,3,5,4,5,3,5,5];
+
+  return Array.from({ length: holes }, () => 4);
+}
+
 function computePlayerTotals(round, player, holes) {
   const scores = round.scores[player] || [];
   const filled = countFilled(scores, 0, holes);
@@ -76,12 +105,13 @@ function computePlayerTotals(round, player, holes) {
   const hcpRaw = round.hcp?.[player];
   const hcp = Number.isFinite(Number(hcpRaw)) ? Number(hcpRaw) : 0;
 
-  const parTot = sumNums(round.par || [], 0, holes);
-  const delta = (filled > 0 && Number.isFinite(parTot)) ? (tot - parTot) : NaN;
+  const parReady = isParComplete(round, holes);
+  const parTot = parReady ? sumNums(round.par || [], 0, holes) : NaN;
+  const delta = (filled > 0 && parReady) ? (tot - parTot) : NaN;
 
   const net = filled > 0 ? (tot - hcp) : NaN;
 
-  return { filled, out, inn, tot, hcp, net, vs: delta };
+  return { filled, out, inn, tot, hcp, net, vs: delta, parReady };
 }
 
 function wireGridNavigation(tableWrap) {
@@ -107,15 +137,16 @@ function wireGridNavigation(tableWrap) {
 
 function renderSnapshotText(model, round, holes) {
   const hasAnyHcp = model.players.some(p => Number.isFinite(Number(round.hcp?.[p])));
+
   const rows = model.players
     .map(p => ({ p, ...computePlayerTotals(round, p, holes) }))
     .filter(x => x.filled > 0)
     .sort((a, b) => {
-  const aScore = hasAnyHcp ? a.net : a.tot;
-  const bScore = hasAnyHcp ? b.net : b.tot;
-  if (aScore !== bScore) return aScore - bScore;
-  return b.filled - a.filled; // ties: more holes completed first
-})
+      const aScore = hasAnyHcp ? a.net : a.tot;
+      const bScore = hasAnyHcp ? b.net : b.tot;
+      if (aScore !== bScore) return aScore - bScore;
+      return b.filled - a.filled;
+    })
     .slice(0, 5);
 
   if (!rows.length) return `<div class="muted small">Enter scores and the leaderboard will show here.</div>`;
@@ -130,7 +161,6 @@ function renderSnapshotText(model, round, holes) {
 export function renderPairings(model) {
   ensurePairings(model);
 
-  // Players UI
   const ta = document.getElementById("playersInput");
   ta.value = model.players.join("\n");
   document.getElementById("playersCount").textContent = `${model.players.length} players`;
@@ -192,7 +222,6 @@ export function renderPairings(model) {
     for (const p of Object.keys(round.scores)) if (!model.players.includes(p)) delete round.scores[p];
     for (const p of Object.keys(round.hcp)) if (!model.players.includes(p)) delete round.hcp[p];
 
-    // default view per round
     if (!model.ui.roundViews[round.id]) model.ui.roundViews[round.id] = "scores";
 
     const wrap = document.createElement("div");
@@ -263,7 +292,7 @@ export function renderPairings(model) {
     body.style.display = isOpen ? "block" : "none";
     body.style.marginTop = "10px";
 
-    // Snapshot
+    // Snapshot card
     const lb = document.createElement("div");
     lb.className = "card";
     lb.innerHTML = `
@@ -271,7 +300,7 @@ export function renderPairings(model) {
       <div data-snapshot="${round.id}">${renderSnapshotText(model, round, holes)}</div>
     `;
 
-    // Toggle
+    // Toggle row
     const toggle = document.createElement("div");
     toggle.className = "round-toggle";
 
@@ -283,22 +312,58 @@ export function renderPairings(model) {
     btnBoard.className = "btn secondary";
     btnBoard.textContent = "Leaderboard";
 
-    const setView = (view) => {
-      model.ui.roundViews[round.id] = view;
-      saveModel(model);
-      // just flip visibility
-      scoresWrap.style.display = view === "scores" ? "block" : "none";
-      boardWrap.style.display = view === "leaderboard" ? "block" : "none";
-      btnScores.classList.toggle("active", view === "scores");
-      btnBoard.classList.toggle("active", view === "leaderboard");
-    };
-
-    btnScores.addEventListener("click", () => setView("scores"));
-    btnBoard.addEventListener("click", () => setView("leaderboard"));
-
     toggle.append(btnScores, btnBoard);
 
-    // Score Entry (table)
+    // PAR tools row
+    const parTools = document.createElement("div");
+    parTools.className = "round-toggle";
+
+    const btnPar72 = document.createElement("button");
+    btnPar72.className = "btn secondary";
+    btnPar72.textContent = "Auto PAR 72";
+
+    const btnPar71 = document.createElement("button");
+    btnPar71.className = "btn secondary";
+    btnPar71.textContent = "PAR 71";
+
+    const btnPar70 = document.createElement("button");
+    btnPar70.className = "btn secondary";
+    btnPar70.textContent = "PAR 70";
+
+    const btnCopyPar = document.createElement("button");
+    btnCopyPar.className = "btn secondary";
+    btnCopyPar.textContent = "Copy PAR from last";
+
+    parTools.append(btnPar72, btnPar71, btnPar70, btnCopyPar);
+
+    btnPar72.addEventListener("click", () => {
+      round.par = buildParTemplate(holes === 18 ? 72 : 36, holes).map(String);
+      saveModel(model);
+      renderPairings(model);
+    });
+
+    btnPar71.addEventListener("click", () => {
+      round.par = buildParTemplate(holes === 18 ? 71 : 35, holes).map(String);
+      saveModel(model);
+      renderPairings(model);
+    });
+
+    btnPar70.addEventListener("click", () => {
+      round.par = buildParTemplate(holes === 18 ? 70 : 34, holes).map(String);
+      saveModel(model);
+      renderPairings(model);
+    });
+
+    btnCopyPar.addEventListener("click", () => {
+      const idx = model.rounds.findIndex(rr => rr.id === round.id);
+      const prev = idx > 0 ? model.rounds[idx - 1] : null;
+      if (!prev?.par) return;
+      round.par = prev.par.slice(0, holes).map(v => String(v ?? ""));
+      saveModel(model);
+      renderPairings(model);
+    });
+
+    // Score Entry wrap
     const scoresWrap = document.createElement("div");
     scoresWrap.style.display = "block";
 
@@ -357,7 +422,7 @@ export function renderPairings(model) {
         inp.value = cleaned;
         round.par[h] = cleaned;
         saveModel(model);
-        renderPairings(model); // easiest: re-render so all vs-par recalcs
+        renderPairings(model);
       });
       td.append(inp);
       trPar.append(td);
@@ -384,10 +449,83 @@ export function renderPairings(model) {
     refreshParTotals();
     tbody.append(trPar);
 
+    // Leaderboard wrap
+    const boardWrap = document.createElement("div");
+    boardWrap.style.display = "none";
+
+    const board = document.createElement("div");
+    board.className = "leaderboard";
+
+    const hasAnyHcp = model.players.some(p => Number.isFinite(Number(round.hcp?.[p])));
+
+    const renderLeaderboard = () => {
+      board.innerHTML = "";
+
+      const rows = model.players
+        .map(p => ({ p, ...computePlayerTotals(round, p, holes) }))
+        .filter(x => x.filled > 0)
+        .sort((a, b) => {
+          const aScore = hasAnyHcp ? a.net : a.tot;
+          const bScore = hasAnyHcp ? b.net : b.tot;
+          if (aScore !== bScore) return aScore - bScore;
+          return b.filled - a.filled;
+        });
+
+      if (!rows.length) {
+        const empty = document.createElement("div");
+        empty.className = "muted small";
+        empty.textContent = "No scores yet. Enter scores to see standings.";
+        board.append(empty);
+        return;
+      }
+
+      rows.forEach((x, idx) => {
+        const row = document.createElement("div");
+        row.className = "leader-row";
+
+        const left = document.createElement("div");
+        left.className = "leader-left";
+        left.innerHTML = `
+          <div><b>${idx + 1}. ${x.p}</b></div>
+          <div class="muted small">
+            Thru ${x.filled}/${holes}
+            ${holes === 18 ? ` • OUT ${x.out} • IN ${x.inn}` : ` • OUT ${x.out}`}
+            ${hasAnyHcp ? ` • HCP ${x.hcp}` : ``}
+          </div>
+        `;
+
+        const right = document.createElement("div");
+        right.className = "leader-right";
+
+        const gross = document.createElement("div");
+        gross.className = "leader-mono";
+        gross.textContent = `G ${x.tot}`;
+        right.append(gross);
+
+        if (hasAnyHcp) {
+          const net = document.createElement("div");
+          net.className = "leader-mono";
+          net.textContent = `N ${x.net}`;
+          right.append(net);
+        }
+
+        const vs = document.createElement("div");
+        vs.className = `badge ${vsParClass(x.vs)}`;
+        vs.textContent = formatVsPar(x.vs);
+        right.append(vs);
+
+        row.append(left, right);
+        board.append(row);
+      });
+    };
+
+    renderLeaderboard();
+    boardWrap.append(board);
+
+    // Snapshot refresh helper
     const refreshSnapshot = () => {
       const node = container.querySelector(`[data-snapshot="${round.id}"]`);
       if (node) node.innerHTML = renderSnapshotText(model, round, holes);
-      // also refresh leaderboard view live
       renderLeaderboard();
     };
 
@@ -407,6 +545,7 @@ export function renderPairings(model) {
       hcpInput.addEventListener("input", () => {
         round.hcp[pName] = hcpInput.value.replace(/[^\d-]/g, "").slice(0, 3);
         saveModel(model);
+        refreshSnapshot();
       });
       tdHcp.append(hcpInput);
       tr.append(tdHcp);
@@ -476,85 +615,24 @@ export function renderPairings(model) {
 
     scoresWrap.append(tableWrap);
 
-    // Leaderboard view (simple for now; step 2 will enhance with Thru/Net)
-    const boardWrap = document.createElement("div");
-    boardWrap.style.display = "none";
-
-    const board = document.createElement("div");
-    board.className = "leaderboard";
-
-    const renderLeaderboard = () => {
-      board.innerHTML = "";
-
-      const hasAnyHcp = model.players.some(p => Number.isFinite(Number(round.hcp?.[p])));
-
-const rows = model.players
-  .map(p => ({ p, ...computePlayerTotals(round, p, holes) }))
-  .filter(x => x.filled > 0)
-  .sort((a, b) => {
-    const aScore = hasAnyHcp ? a.net : a.tot;
-    const bScore = hasAnyHcp ? b.net : b.tot;
-    if (aScore !== bScore) return aScore - bScore;
-    return b.filled - a.filled; // ties: more holes first
-  });
-
-      if (!rows.length) {
-        const empty = document.createElement("div");
-        empty.className = "muted small";
-        empty.textContent = "No scores yet. Enter scores to see standings.";
-        board.append(empty);
-        return;
-      }
-
-      rows.forEach((x, idx) => {
-        const row = document.createElement("div");
-        row.className = "leader-row";
-
-        const left = document.createElement("div");
-        left.className = "leader-left";
-        left.innerHTML = `
-  <div><b>${idx + 1}. ${x.p}</b></div>
-  <div class="muted small">
-    Thru ${x.filled}/${holes}
-    ${holes === 18 ? ` • OUT ${x.out} • IN ${x.inn}` : ` • OUT ${x.out}`}
-    ${hasAnyHcp ? ` • HCP ${x.hcp}` : ``}
-  </div>
-`;
-
-        const right = document.createElement("div");
-        right.className = "leader-right";
-
-        const gross = document.createElement("div");
-gross.className = "leader-mono";
-gross.textContent = `G ${x.tot}`;
-
-right.append(gross);
-
-if (hasAnyHcp) {
-  const net = document.createElement("div");
-  net.className = "leader-mono";
-  net.textContent = `N ${x.net}`;
-  right.append(net);
-}
-
-const vs = document.createElement("div");
-vs.className = `badge ${vsParClass(x.vs)}`;
-vs.textContent = formatVsPar(x.vs);
-
-right.append(vs);
-        row.append(left, right);
-        board.append(row);
-      });
+    // View switching
+    const setView = (view) => {
+      model.ui.roundViews[round.id] = view;
+      saveModel(model);
+      scoresWrap.style.display = view === "scores" ? "block" : "none";
+      boardWrap.style.display = view === "leaderboard" ? "block" : "none";
+      btnScores.classList.toggle("active", view === "scores");
+      btnBoard.classList.toggle("active", view === "leaderboard");
     };
 
-    renderLeaderboard();
-    boardWrap.append(board);
+    btnScores.addEventListener("click", () => setView("scores"));
+    btnBoard.addEventListener("click", () => setView("leaderboard"));
 
-    body.append(lb, toggle, scoresWrap, boardWrap);
+    // Final append
+    body.append(lb, toggle, parTools, scoresWrap, boardWrap);
     wrap.append(head, body);
     container.append(wrap);
 
-    // Initialize view buttons & visibility
     setView(model.ui.roundViews[round.id]);
   }
 
