@@ -25,11 +25,12 @@
   </header>
 
   <main class="shell">
-    <nav class="tabs" role="tablist" aria-label="Main navigation">
-      <button class="tab" role="tab" aria-selected="true" data-tab="itinerary">Itinerary</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="pairings">Pairings & Scores</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="settings">Settings</button>
-    </nav>
+   <nav class="tabs" role="tablist" aria-label="Main navigation">
+  <button class="tab" role="tab" aria-selected="true" data-tab="itinerary">Itinerary</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="trip">Trip Details</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="pairings">Pairings & Scores</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="settings">Settings</button>
+</nav>
 
     <section class="panel" data-panel="itinerary" role="tabpanel">
       <div class="panel-header">
@@ -46,6 +47,65 @@
         Tip: add time like <code>7:30 AM</code> and keep notes short. Everything autosaves locally.
       </div>
     </section>
+
+    <section class="panel" data-panel="trip" role="tabpanel" hidden>
+  <div class="panel-header">
+    <h2>Trip Details</h2>
+    <div class="actions">
+      <button class="btn secondary" id="btnTripClear">Clear</button>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Overview</div>
+
+      <div class="form">
+        <label class="label">
+          Trip name
+          <input id="tripName" class="input" placeholder="Forest Dunes 2026" />
+        </label>
+
+        <label class="label">
+          Dates
+          <input id="tripDates" class="input" placeholder="June 12–15, 2026" />
+        </label>
+
+        <label class="label">
+          Location
+          <input id="tripLocation" class="input" placeholder="Roscommon, MI" />
+        </label>
+
+        <label class="label">
+          Lodging
+          <input id="tripLodging" class="input" placeholder="On-site cabins / hotel name" />
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Links & Notes</div>
+
+      <div class="form">
+        <label class="label">
+          Address / Google Maps link
+          <input id="tripMapLink" class="input" placeholder="https://maps.google.com/..." />
+        </label>
+
+        <label class="label">
+          Notes
+          <textarea id="tripNotes" class="textarea" placeholder="Check-in time, tee time rules, dinners, reminders..."></textarea>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Roster</div>
+    <p class="muted small">Optional: use this for a “who’s coming” list separate from Players (scoring).</p>
+    <textarea id="tripRoster" class="textarea" placeholder="Glenn&#10;Cristina&#10;..."></textarea>
+  </div>
+</section>
 
     <section class="panel" data-panel="pairings" role="tabpanel" hidden>
       <div class="panel-header">

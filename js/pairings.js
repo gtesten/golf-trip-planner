@@ -13,6 +13,23 @@ export function parsePlayers(text) {
     .slice(0, 24);
 }
 
+function ensurePar(round, holes) {
+  round.par ??= Array.from({ length: holes }, () => "");
+  if (round.par.length !== holes) {
+    round.par = Array.from({ length: holes }, (_, i) => round.par[i] ?? "");
+  }
+}
+
+function sumPar(arr) {
+  let t = 0;
+  for (const v of arr) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) continue;
+    t += n;
+  }
+  return t;
+}
+
 function makeEmptyScores(players, holes) {
   const scores = {};
   for (const p of players) {
@@ -33,6 +50,7 @@ function sumRow(arr) {
 
 export function renderPairings(model) {
   ensurePairings(model);
+  ensurePar(round, holes);
 
   // players UI
   const ta = document.getElementById("playersInput");
@@ -103,6 +121,44 @@ export function renderPairings(model) {
 
     // body
     const tbody = document.createElement("tbody");
+
+    // PAR row (editable per hole)
+const trPar = document.createElement("tr");
+
+const tdParLabel = document.createElement("td");
+tdParLabel.textContent = "PAR";
+
+const tdParBlank = document.createElement("td");
+tdParBlank.textContent = ""; // under HCP column
+
+trPar.append(tdParLabel, tdParBlank);
+
+for (let h = 0; h < holes; h++) {
+  const td = document.createElement("td");
+  const inp = document.createElement("input");
+  inp.className = "score-input";
+  inp.inputMode = "numeric";
+  inp.placeholder = "";
+  inp.value = round.par[h] ?? "";
+  inp.addEventListener("input", () => {
+    const cleaned = inp.value.replace(/[^\d]/g, "").slice(0, 2);
+    inp.value = cleaned;
+    round.par[h] = cleaned;
+    parTotalSpan.textContent = sumPar(round.par).toString();
+    saveModel(model);
+  });
+  td.append(inp);
+  trPar.append(td);
+}
+
+const tdParTot = document.createElement("td");
+tdParTot.className = "total-cell";
+const parTotalSpan = document.createElement("span");
+parTotalSpan.textContent = sumPar(round.par).toString();
+tdParTot.append(parTotalSpan);
+trPar.append(tdParTot);
+
+tbody.append(trPar);
 
     // keep data sane
     round.hcp ??= {};

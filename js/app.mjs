@@ -3,8 +3,18 @@ import { loadModel, saveModel, resetModel, loadSupabaseConfig, saveSupabaseConfi
 import { bindItineraryUI, renderItinerary } from "./itinerary.js";
 import { bindPairingsUI, renderPairings } from "./pairings.js";
 import { getSupabaseClient } from "./supabaseClient.js";
+import { bindTripUI, renderTrip } from "./tripDetails.js";
 
 const DEFAULT_MODEL = {
+  trip: {
+    name: "",
+    dates: "",
+    location: "",
+    lodging: "",
+    mapLink: "",
+    notes: "",
+    roster: ""
+  },
   itinerary: [],
   players: [],
   rounds: []
@@ -20,6 +30,8 @@ initTabs({ defaultTab: "itinerary" });
 // ---- Itinerary ----
 bindItineraryUI(model);
 renderItinerary(model);
+bindTripUI(model);
+renderTrip(model);
 
 // ---- Pairings/Scores ----
 bindPairingsUI(model);
