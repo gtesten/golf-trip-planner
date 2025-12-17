@@ -1,7 +1,7 @@
 import { saveModel } from "./storage.js";
 
 export function ensurePairings(model) {
-  model.ui ??= { playersApplied: false };
+  model.ui ??= { playersApplied: false, openRoundId: null };
   model.players ??= [];
   model.rounds ??= [];
 }
@@ -43,6 +43,49 @@ function formatVsPar(delta) {
   return delta > 0 ? `+${delta}` : `${delta}`;
 }
 
+function vsParClass(delta) {
+  if (!Number.isFinite(delta)) return "";
+  if (delta === 0) return "even";
+  return delta > 0 ? "pos" : "neg";
+}
+
+function isFilledNumber(v) {
+  if (v === "" || v == null) return false;
+  const n = Number(v);
+  return Number.isFinite(n);
+}
+
+function computePlayerTotals(round, player, holes) {
+  const scores = round.scores[player] || [];
+  const out = sumNums(scores, 0, Math.min(9, holes));
+  const inn = holes === 18 ? sumNums(scores, 9, 18) : 0;
+  const tot = sumNums(scores, 0, holes);
+  const parTot = sumNums(round.par || [], 0, holes);
+  return { out, inn, tot, vs: tot - parTot };
+}
+
+function wireGridNavigation(tableWrap) {
+  // Enter -> next input; Arrow keys move
+  tableWrap.addEventListener("keydown", (e) => {
+    const t = e.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (!t.classList.contains("score-input")) return;
+
+    const inputs = Array.from(tableWrap.querySelectorAll("input.score-input"));
+    const idx = inputs.indexOf(t);
+    if (idx < 0) return;
+
+    const move = (delta) => {
+      const next = inputs[idx + delta];
+      if (next) { next.focus(); next.select?.(); }
+    };
+
+    if (e.key === "Enter") { e.preventDefault(); move(1); }
+    if (e.key === "ArrowRight") { move(1); }
+    if (e.key === "ArrowLeft") { move(-1); }
+  });
+}
+
 export function renderPairings(model) {
   ensurePairings(model);
 
@@ -51,28 +94,31 @@ export function renderPairings(model) {
   ta.value = model.players.join("\n");
   document.getElementById("playersCount").textContent = `${model.players.length} players`;
 
+  const subtitle = document.getElementById("pairingsSubtitle");
   const container = document.getElementById("roundsContainer");
   container.innerHTML = "";
 
-  // Gate: no rounds visible until Apply Players has been clicked at least once
-  const canShowRounds = model.ui.playersApplied && model.players.length > 0;
-
-  // Disable/enable round controls
   const btnCreateRound = document.getElementById("btnCreateRound");
   const btnAddRound = document.getElementById("btnAddRound");
   const btnResetScores = document.getElementById("btnResetScores");
+  const btnPrintAll = document.getElementById("btnPrintAllScorecards");
+
+  const canShowRounds = model.ui.playersApplied && model.players.length > 0;
+
   btnCreateRound.disabled = !canShowRounds;
   btnAddRound.disabled = !canShowRounds;
   btnResetScores.disabled = !canShowRounds;
+  btnPrintAll.disabled = !canShowRounds || model.rounds.length === 0;
 
   if (!canShowRounds) {
+    subtitle.textContent = "Step 1: Add players to begin.";
     const empty = document.createElement("div");
     empty.className = "card";
     empty.innerHTML = `
-      <div class="card-title">Add players first</div>
+      <div class="card-title">Step 1 — Players</div>
       <div class="muted">
         Enter players (one per line) and click <b>Apply players</b>.
-        After that, you can add rounds and scorecards will appear here.
+        Rounds and scorecards will appear once players are applied.
       </div>
     `;
     container.append(empty);
@@ -80,7 +126,15 @@ export function renderPairings(model) {
     return;
   }
 
-  // Render rounds
+  subtitle.textContent = model.rounds.length
+    ? "Step 3: Enter scores (use Enter / Arrow keys to move)."
+    : "Step 2: Create your first round.";
+
+  // Default open round: last created if none set
+  if (!model.ui.openRoundId && model.rounds.length) {
+    model.ui.openRoundId = model.rounds[model.rounds.length - 1].id;
+  }
+
   for (let r = 0; r < model.rounds.length; r++) {
     const round = model.rounds[r];
     const holes = Number(round.holes || 18);
@@ -101,103 +155,140 @@ export function renderPairings(model) {
     for (const p of Object.keys(round.scores)) if (!model.players.includes(p)) delete round.scores[p];
     for (const p of Object.keys(round.hcp)) if (!model.players.includes(p)) delete round.hcp[p];
 
+    // Compute leaderboard snapshot
+    const leaderboard = model.players
+      .map(p => ({ p, ...computePlayerTotals(round, p, holes) }))
+      .filter(x => isFilledNumber(x.tot))
+      .sort((a, b) => a.tot - b.tot)
+      .slice(0, 5);
+
     const wrap = document.createElement("div");
     wrap.className = "round-card";
 
     const head = document.createElement("div");
     head.className = "round-head";
 
-    const title = document.createElement("div");
-    title.className = "round-title";
+    const left = document.createElement("div");
+    left.className = "round-meta";
+
+    const title = document.createElement("button");
+    title.className = "btn secondary";
+    title.style.padding = "10px 12px";
     title.textContent = round.name || `Round ${r + 1}`;
-
-    const right = document.createElement("div");
-    right.className = "actions";
-
-    const btnPrint = document.createElement("button");
-    btnPrint.className = "btn secondary";
-    btnPrint.textContent = "Print scorecard";
-    btnPrint.addEventListener("click", () => window.print());
-
-    const del = document.createElement("button");
-    del.className = "btn secondary";
-    del.textContent = "Delete round";
-    del.addEventListener("click", () => {
-      model.rounds.splice(r, 1);
+    title.title = "Expand/collapse this round";
+    title.addEventListener("click", () => {
+      model.ui.openRoundId = (model.ui.openRoundId === round.id) ? null : round.id;
       saveModel(model);
       renderPairings(model);
     });
 
-    right.append(btnPrint, del);
-    head.append(title, right);
+    const pillHoles = document.createElement("span");
+    pillHoles.className = "pill";
+    pillHoles.innerHTML = `<strong>${holes}</strong> holes`;
 
+    const parTot = sumNums(round.par, 0, holes);
+    const pillPar = document.createElement("span");
+    pillPar.className = "pill";
+    pillPar.innerHTML = `<strong>${parTot}</strong> par`;
+
+    left.append(title, pillHoles, pillPar);
+
+    const right = document.createElement("div");
+    right.className = "actions";
+
+    const btnActive = document.createElement("button");
+    btnActive.className = "btn secondary";
+    btnActive.textContent = (model.ui.openRoundId === round.id) ? "Active" : "Set active";
+    btnActive.disabled = (model.ui.openRoundId === round.id);
+    btnActive.addEventListener("click", () => {
+      model.ui.openRoundId = round.id;
+      saveModel(model);
+      renderPairings(model);
+    });
+
+    const btnPrint = document.createElement("button");
+    btnPrint.className = "btn secondary";
+    btnPrint.textContent = "Print";
+    btnPrint.addEventListener("click", () => window.print());
+
+    const del = document.createElement("button");
+    del.className = "btn secondary";
+    del.textContent = "Delete";
+    del.addEventListener("click", () => {
+      model.rounds.splice(r, 1);
+      if (model.ui.openRoundId === round.id) model.ui.openRoundId = null;
+      saveModel(model);
+      renderPairings(model);
+    });
+
+    right.append(btnActive, btnPrint, del);
+
+    head.append(left, right);
+
+    // Body collapsible
+    const isOpen = model.ui.openRoundId === round.id;
+
+    const body = document.createElement("div");
+    body.style.display = isOpen ? "block" : "none";
+    body.style.marginTop = "10px";
+
+    // Leaderboard card (quick scan)
+    const lb = document.createElement("div");
+    lb.className = "card";
+    lb.innerHTML = `
+      <div class="card-title">Round snapshot</div>
+      ${
+        leaderboard.length
+          ? `<div class="muted small">${leaderboard.map((x, i) =>
+              `${i + 1}. <b>${x.p}</b> ${x.tot} (${formatVsPar(x.vs)})`
+            ).join(" &nbsp; • &nbsp; ")}</div>`
+          : `<div class="muted small">Enter a few scores and the leaderboard will show here.</div>`
+      }
+    `;
+
+    // Table
     const tableWrap = document.createElement("div");
     tableWrap.className = "table-wrap";
 
     const table = document.createElement("table");
     table.className = "score-table";
 
-    // ---- Header ----
+    // Header
     const thead = document.createElement("thead");
     const hr = document.createElement("tr");
 
-    const thPlayer = document.createElement("th");
-    thPlayer.textContent = "Player";
-    const thHcp = document.createElement("th");
-    thHcp.textContent = "HCP";
-
+    const thPlayer = document.createElement("th"); thPlayer.textContent = "Player";
+    const thHcp = document.createElement("th"); thHcp.textContent = "HCP";
     hr.append(thPlayer, thHcp);
 
     for (let i = 1; i <= holes; i++) {
       const th = document.createElement("th");
       th.textContent = i;
       hr.append(th);
-      if (i === 9) {
-        const thOut = document.createElement("th");
-        thOut.textContent = "OUT";
-        hr.append(thOut);
-      }
+      if (i === 9) { const thOut = document.createElement("th"); thOut.textContent = "OUT"; hr.append(thOut); }
     }
-
-    if (holes === 18) {
-      const thIn = document.createElement("th");
-      thIn.textContent = "IN";
-      hr.append(thIn);
-    }
-
-    const thTot = document.createElement("th");
-    thTot.textContent = "TOTAL";
-    hr.append(thTot);
-
-    const thVs = document.createElement("th");
-    thVs.textContent = "Vs PAR";
-    hr.append(thVs);
+    if (holes === 18) { const thIn = document.createElement("th"); thIn.textContent = "IN"; hr.append(thIn); }
+    const thTot = document.createElement("th"); thTot.textContent = "TOTAL"; hr.append(thTot);
+    const thVs = document.createElement("th"); thVs.textContent = "Vs PAR"; hr.append(thVs);
 
     thead.append(hr);
     table.append(thead);
 
-    // ---- Body ----
     const tbody = document.createElement("tbody");
 
     // PAR row
     const trPar = document.createElement("tr");
-    const tdParLabel = document.createElement("td");
-    tdParLabel.textContent = "PAR";
-    const tdParBlank = document.createElement("td");
-    tdParBlank.textContent = "";
-    trPar.append(tdParLabel, tdParBlank);
+    trPar.append(Object.assign(document.createElement("td"), { textContent: "PAR" }));
+    trPar.append(Object.assign(document.createElement("td"), { textContent: "" }));
 
-    const parTotalSpan = document.createElement("span");
     const parOutSpan = document.createElement("span");
     const parInSpan = document.createElement("span");
+    const parTotSpan = document.createElement("span");
 
     function refreshParTotals() {
-      const out = sumNums(round.par, 0, Math.min(9, holes));
-      const inn = holes === 18 ? sumNums(round.par, 9, 18) : 0;
-      const tot = sumNums(round.par, 0, holes);
-      parOutSpan.textContent = Number.isFinite(out) ? String(out) : "—";
-      parInSpan.textContent = holes === 18 ? String(inn) : "—";
-      parTotalSpan.textContent = String(tot);
+      parOutSpan.textContent = String(sumNums(round.par, 0, Math.min(9, holes)));
+      if (holes === 18) parInSpan.textContent = String(sumNums(round.par, 9, 18));
+      parTotSpan.textContent = String(sumNums(round.par, 0, holes));
     }
 
     for (let h = 0; h < holes; h++) {
@@ -210,9 +301,7 @@ export function renderPairings(model) {
         const cleaned = inp.value.replace(/[^\d]/g, "").slice(0, 2);
         inp.value = cleaned;
         round.par[h] = cleaned;
-        refreshParTotals();
         saveModel(model);
-        // re-render to refresh all vs-par cells (simple + reliable)
         renderPairings(model);
       });
       td.append(inp);
@@ -225,23 +314,18 @@ export function renderPairings(model) {
         trPar.append(tdOut);
       }
     }
-
     if (holes === 18) {
       const tdIn = document.createElement("td");
       tdIn.className = "total-cell";
       tdIn.append(parInSpan);
       trPar.append(tdIn);
     }
+    const tdTot2 = document.createElement("td");
+    tdTot2.className = "total-cell";
+    tdTot2.append(parTotSpan);
+    trPar.append(tdTot2);
 
-    const tdTot = document.createElement("td");
-    tdTot.className = "total-cell";
-    tdTot.append(parTotalSpan);
-    trPar.append(tdTot);
-
-    const tdVsBlank = document.createElement("td");
-    tdVsBlank.textContent = "";
-    trPar.append(tdVsBlank);
-
+    trPar.append(Object.assign(document.createElement("td"), { textContent: "" }));
     refreshParTotals();
     tbody.append(trPar);
 
@@ -250,9 +334,7 @@ export function renderPairings(model) {
       const scores = round.scores[pName];
 
       const tr = document.createElement("tr");
-
-      const tdName = document.createElement("td");
-      tdName.textContent = pName;
+      tr.append(Object.assign(document.createElement("td"), { textContent: pName }));
 
       const tdHcp = document.createElement("td");
       const hcpInput = document.createElement("input");
@@ -265,8 +347,7 @@ export function renderPairings(model) {
         saveModel(model);
       });
       tdHcp.append(hcpInput);
-
-      tr.append(tdName, tdHcp);
+      tr.append(tdHcp);
 
       const outSpan = document.createElement("span");
       const inSpan = document.createElement("span");
@@ -274,14 +355,14 @@ export function renderPairings(model) {
       const vsSpan = document.createElement("span");
 
       function refreshRowTotals() {
-        const out = sumNums(scores, 0, Math.min(9, holes));
-        const inn = holes === 18 ? sumNums(scores, 9, 18) : 0;
-        const tot = sumNums(scores, 0, holes);
-        const parTot = sumNums(round.par, 0, holes);
+        const { out, inn, tot, vs } = computePlayerTotals(round, pName, holes);
         outSpan.textContent = String(out);
         if (holes === 18) inSpan.textContent = String(inn);
         totSpan.textContent = String(tot);
-        vsSpan.textContent = formatVsPar(tot - parTot);
+
+        const txt = formatVsPar(vs);
+        vsSpan.textContent = txt;
+        vsSpan.className = `badge ${vsParClass(vs)}`;
       }
 
       for (let h = 0; h < holes; h++) {
@@ -315,23 +396,25 @@ export function renderPairings(model) {
         tr.append(tdIn);
       }
 
-      const tdTot2 = document.createElement("td");
-      tdTot2.className = "total-cell";
-      tdTot2.append(totSpan);
+      const tdTot = document.createElement("td");
+      tdTot.className = "total-cell";
+      tdTot.append(totSpan);
 
       const tdVs = document.createElement("td");
       tdVs.className = "total-cell";
       tdVs.append(vsSpan);
 
-      tr.append(tdTot2, tdVs);
-
+      tr.append(tdTot, tdVs);
       refreshRowTotals();
       tbody.append(tr);
     });
 
     table.append(tbody);
     tableWrap.append(table);
-    wrap.append(head, tableWrap);
+    wireGridNavigation(tableWrap);
+
+    body.append(lb, tableWrap);
+    wrap.append(head, body);
     container.append(wrap);
   }
 
@@ -341,38 +424,15 @@ export function renderPairings(model) {
 export function bindPairingsUI(model) {
   ensurePairings(model);
 
-  const btnApplyPlayers = document.getElementById("btnApplyPlayers");
-  const btnCreateRound = document.getElementById("btnCreateRound");
-  const btnAddRound = document.getElementById("btnAddRound");
-  const btnResetScores = document.getElementById("btnResetScores");
-
-  btnApplyPlayers.addEventListener("click", () => {
+  document.getElementById("btnApplyPlayers").addEventListener("click", () => {
     const text = document.getElementById("playersInput").value;
     model.players = parsePlayers(text);
-
-    // Gate: only after successful apply with >0 players
     model.ui.playersApplied = model.players.length > 0;
-
-    // Reconcile existing rounds if any
-    for (const round of model.rounds) {
-      const holes = Number(round.holes || 18);
-      round.hcp ??= {};
-      round.scores ??= {};
-      ensurePar(round, holes);
-
-      for (const p of model.players) {
-        round.hcp[p] ??= "";
-        round.scores[p] ??= Array.from({ length: holes }, () => "");
-      }
-      for (const p of Object.keys(round.hcp)) if (!model.players.includes(p)) delete round.hcp[p];
-      for (const p of Object.keys(round.scores)) if (!model.players.includes(p)) delete round.scores[p];
-    }
-
     saveModel(model);
     renderPairings(model);
   });
 
-  btnCreateRound.addEventListener("click", () => {
+  document.getElementById("btnCreateRound").addEventListener("click", () => {
     if (!model.ui.playersApplied || model.players.length === 0) return;
 
     const nameEl = document.getElementById("roundNameInput");
@@ -381,25 +441,27 @@ export function bindPairingsUI(model) {
     const name = nameEl.value.trim() || `Round ${model.rounds.length + 1}`;
     const holes = Number(holesEl.value || 18);
 
-    model.rounds.push({
+    const newRound = {
       id: crypto?.randomUUID?.() ?? String(Date.now()),
       name,
       holes,
       par: Array.from({ length: holes }, () => ""),
       hcp: {},
       scores: makeEmptyScores(model.players, holes),
-    });
+    };
 
+    model.rounds.push(newRound);
+    model.ui.openRoundId = newRound.id; // open immediately
     saveModel(model);
     renderPairings(model);
     nameEl.value = "";
   });
 
-  btnAddRound.addEventListener("click", () => {
-    btnCreateRound.click();
+  document.getElementById("btnAddRound").addEventListener("click", () => {
+    document.getElementById("btnCreateRound").click();
   });
 
-  btnResetScores.addEventListener("click", () => {
+  document.getElementById("btnResetScores").addEventListener("click", () => {
     if (!model.ui.playersApplied || model.players.length === 0) return;
     for (const round of model.rounds) {
       const holes = Number(round.holes || 18);
@@ -407,5 +469,9 @@ export function bindPairingsUI(model) {
     }
     saveModel(model);
     renderPairings(model);
+  });
+
+  document.getElementById("btnPrintAllScorecards")?.addEventListener("click", () => {
+    window.print();
   });
 }

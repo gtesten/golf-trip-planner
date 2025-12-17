@@ -121,12 +121,17 @@
 
     <section class="panel" data-panel="pairings" role="tabpanel" hidden>
       <div class="panel-header">
-        <h2>Pairings & Scores</h2>
-        <div class="actions">
-          <button class="btn" id="btnAddRound">+ Add round</button>
-          <button class="btn secondary" id="btnResetScores">Reset scores</button>
-        </div>
-      </div>
+  <div>
+    <h2>Pairings & Scores</h2>
+    <div class="muted small" id="pairingsSubtitle">Step 1: Add players to begin.</div>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="btnAddRound" disabled>+ Add round</button>
+    <button class="btn secondary" id="btnResetScores" disabled>Reset scores</button>
+    <button class="btn secondary" id="btnPrintAllScorecards" disabled>Print all</button>
+  </div>
+</div>
 
       <div class="grid-2">
         <div class="card">
