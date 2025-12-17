@@ -398,9 +398,6 @@ code{
 }
 
 /* Vs Par badge variants (no explicit colors requested, so keep subtle) */
-.badge.pos{ }
-.badge.even{ }
-.badge.neg{ }
 
 .table-wrap { max-height: 520px; } /* keeps giant tables from feeling endless */
 /* Round view toggle (Score Entry / Leaderboard) */
@@ -448,3 +445,30 @@ code{
 .round-toggle + .round-toggle { margin-top: -2px; opacity: .98; }
 .round-head .actions { flex-wrap: wrap; justify-content: flex-end; }
 .round-head .actions .btn { margin-top: 6px; }
+/* ===========================
+   PRINT SCORECARDS
+   =========================== */
+@media print {
+  /* Hide navigation + controls */
+  header, .tabs, .topbar, .controls, .btn, .pill, .muted, .round-toggle, .card-title { display:none !important; }
+
+  /* Show the main Pairings tab content only */
+  main { padding: 0 !important; }
+  .round-card { break-after: page; page-break-after: always; border: none !important; box-shadow: none !important; }
+  .round-head { display: block !important; margin-bottom: 8px !important; }
+  .round-meta button { display: none !important; } /* hide collapsible button styling */
+  .round-meta::before { content: ""; }
+
+  /* Always show body when printing */
+  .round-card > div:nth-child(2) { display: block !important; }
+
+  /* Make table crisp */
+  .table-wrap { overflow: visible !important; border: none !important; }
+  table.score-table { width: 100% !important; border-collapse: collapse !important; }
+  table.score-table th, table.score-table td {
+    border: 1px solid #bbb !important;
+    padding: 4px 6px !important;
+    font-size: 11px !important;
+  }
+  input.score-input { display: none !important; } /* print values as text only */
+}

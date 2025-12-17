@@ -3,6 +3,7 @@ import { saveModel } from "./storage.js";
 export function ensurePairings(model) {
   model.ui ??= { playersApplied: false, openRoundId: null, roundViews: {} };
   model.ui.roundViews ??= {};
+  model.ui.printRoundId ??= null;
   model.players ??= [];
   model.rounds ??= [];
 }
@@ -79,9 +80,9 @@ function isParComplete(round, holes) {
 // Reasonable default templates (not course-specific, but great for quick scoring)
 function buildParTemplate(totalPar, holes) {
   if (holes !== 18) {
-    if (totalPar === 36) return [4,4,3,4,4,3,4,5,5];
-    if (totalPar === 35) return [4,4,3,4,4,3,4,5,4];
-    if (totalPar === 34) return [4,4,3,4,4,3,4,4,4];
+    if (totalPar === 36) return [4, 4, 3, 4, 4, 3, 4, 5, 5];
+    if (totalPar === 35) return [4, 4, 3, 4, 4, 3, 4, 5, 4];
+    if (totalPar === 34) return [4, 4, 3, 4, 4, 3, 4, 4, 4];
     return Array.from({ length: holes }, () => 4);
   }
 
@@ -145,7 +146,7 @@ function renderSnapshotText(model, round, holes) {
       const aScore = hasAnyHcp ? a.net : a.tot;
       const bScore = hasAnyHcp ? b.net : b.tot;
       if (aScore !== bScore) return aScore - bScore;
-      return b.filled - a.filled;
+      return b.filled - a.filled; // ties: more holes completed first
     })
     .slice(0, 5);
 
@@ -227,6 +228,11 @@ export function renderPairings(model) {
     const wrap = document.createElement("div");
     wrap.className = "round-card";
 
+    // If printing a single round, hide all other rounds
+    if (model.ui.printRoundId && model.ui.printRoundId !== round.id) {
+      wrap.style.display = "none";
+    }
+
     const head = document.createElement("div");
     head.className = "round-head";
 
@@ -258,78 +264,79 @@ export function renderPairings(model) {
     right.className = "actions";
 
     const btnActive = document.createElement("button");
-btnActive.className = "btn secondary";
-btnActive.textContent = (model.ui.openRoundId === round.id) ? "Active" : "Set active";
-btnActive.disabled = (model.ui.openRoundId === round.id);
-btnActive.addEventListener("click", () => {
-  model.ui.openRoundId = round.id;
-  saveModel(model);
-  renderPairings(model);
-});
+    btnActive.className = "btn secondary";
+    btnActive.textContent = (model.ui.openRoundId === round.id) ? "Active" : "Set active";
+    btnActive.disabled = (model.ui.openRoundId === round.id);
+    btnActive.addEventListener("click", () => {
+      model.ui.openRoundId = round.id;
+      saveModel(model);
+      renderPairings(model);
+    });
 
-// NEW: Duplicate round
-const btnDup = document.createElement("button");
-btnDup.className = "btn secondary";
-btnDup.textContent = "Duplicate";
-btnDup.title = "Duplicate this round (copies holes, PAR, and HCP; clears scores)";
-btnDup.addEventListener("click", () => {
-  const newId = crypto?.randomUUID?.() ?? String(Date.now());
-  const newRound = {
-    id: newId,
-    name: `${round.name || `Round ${r + 1}`} (Copy)`,
-    holes,
-    par: (round.par || []).slice(0, holes).map(v => String(v ?? "")),
-    hcp: { ...(round.hcp || {}) },
-    scores: makeEmptyScores(model.players, holes), // blank scores
-  };
+    const btnDup = document.createElement("button");
+    btnDup.className = "btn secondary";
+    btnDup.textContent = "Duplicate";
+    btnDup.title = "Duplicate this round (copies holes, PAR, and HCP; clears scores)";
+    btnDup.addEventListener("click", () => {
+      const newId = crypto?.randomUUID?.() ?? String(Date.now());
+      const newRound = {
+        id: newId,
+        name: `${round.name || `Round ${r + 1}`} (Copy)`,
+        holes,
+        par: (round.par || []).slice(0, holes).map(v => String(v ?? "")),
+        hcp: { ...(round.hcp || {}) },
+        scores: makeEmptyScores(model.players, holes),
+      };
 
-  model.rounds.push(newRound);
-  model.ui.openRoundId = newId;
-  model.ui.roundViews[newId] = model.ui.roundViews[round.id] || "scores";
+      model.rounds.push(newRound);
+      model.ui.openRoundId = newId;
+      model.ui.roundViews[newId] = model.ui.roundViews[round.id] || "scores";
 
-  saveModel(model);
-  renderPairings(model);
-});
+      saveModel(model);
+      renderPairings(model);
+    });
 
-// NEW: Copy HCP from previous round
-const btnCopyHcp = document.createElement("button");
-btnCopyHcp.className = "btn secondary";
-btnCopyHcp.textContent = "Copy HCP";
-btnCopyHcp.title = "Copy handicaps from previous round";
-btnCopyHcp.addEventListener("click", () => {
-  const idx = model.rounds.findIndex(rr => rr.id === round.id);
-  const prev = idx > 0 ? model.rounds[idx - 1] : null;
-  if (!prev?.hcp) return;
+    const btnCopyHcp = document.createElement("button");
+    btnCopyHcp.className = "btn secondary";
+    btnCopyHcp.textContent = "Copy HCP";
+    btnCopyHcp.title = "Copy handicaps from previous round";
+    btnCopyHcp.addEventListener("click", () => {
+      const idx = model.rounds.findIndex(rr => rr.id === round.id);
+      const prev = idx > 0 ? model.rounds[idx - 1] : null;
+      if (!prev?.hcp) return;
 
-  round.hcp = round.hcp || {};
-  for (const p of model.players) {
-    if (prev.hcp[p] != null && prev.hcp[p] !== "") round.hcp[p] = prev.hcp[p];
-  }
+      round.hcp = round.hcp || {};
+      for (const p of model.players) {
+        if (prev.hcp[p] != null && prev.hcp[p] !== "") round.hcp[p] = prev.hcp[p];
+      }
 
-  saveModel(model);
-  renderPairings(model);
-});
+      saveModel(model);
+      renderPairings(model);
+    });
 
-const btnPrint = document.createElement("button");
-btnPrint.className = "btn secondary";
-btnPrint.textContent = "Print";
-btnPrint.addEventListener("click", () => window.print());
+    const btnPrint = document.createElement("button");
+    btnPrint.className = "btn secondary";
+    btnPrint.textContent = "Print";
+    btnPrint.title = "Print this round (use Save as PDF)";
+    btnPrint.addEventListener("click", () => {
+      model.ui.printRoundId = round.id;
+      saveModel(model);
+      renderPairings(model);
+      setTimeout(() => window.print(), 50);
+    });
 
-const del = document.createElement("button");
-del.className = "btn secondary";
-del.textContent = "Delete";
-del.addEventListener("click", () => {
-  model.rounds.splice(r, 1);
-  delete model.ui.roundViews[round.id];
-  if (model.ui.openRoundId === round.id) model.ui.openRoundId = null;
-  saveModel(model);
-  renderPairings(model);
-});
+    const del = document.createElement("button");
+    del.className = "btn secondary";
+    del.textContent = "Delete";
+    del.addEventListener("click", () => {
+      model.rounds.splice(r, 1);
+      delete model.ui.roundViews[round.id];
+      if (model.ui.openRoundId === round.id) model.ui.openRoundId = null;
+      saveModel(model);
+      renderPairings(model);
+    });
 
-// UPDATED: include new buttons
-right.append(btnActive, btnDup, btnCopyHcp, btnPrint, del);
-head.append(left, right);
-
+    right.append(btnActive, btnDup, btnCopyHcp, btnPrint, del);
     head.append(left, right);
 
     const isOpen = model.ui.openRoundId === round.id;
@@ -463,14 +470,21 @@ head.append(left, right);
       inp.className = "score-input";
       inp.inputMode = "numeric";
       inp.value = round.par[h] ?? "";
+
+      const pv = document.createElement("span");
+      pv.className = "print-value";
+      pv.textContent = inp.value || "";
+
       inp.addEventListener("input", () => {
         const cleaned = inp.value.replace(/[^\d]/g, "").slice(0, 2);
         inp.value = cleaned;
+        pv.textContent = cleaned;
         round.par[h] = cleaned;
         saveModel(model);
         renderPairings(model);
       });
-      td.append(inp);
+
+      td.append(inp, pv);
       trPar.append(td);
 
       if (h === 8) {
@@ -502,10 +516,9 @@ head.append(left, right);
     const board = document.createElement("div");
     board.className = "leaderboard";
 
-    const hasAnyHcp = model.players.some(p => Number.isFinite(Number(round.hcp?.[p])));
-
     const renderLeaderboard = () => {
       board.innerHTML = "";
+      const hasAnyHcp = model.players.some(p => Number.isFinite(Number(round.hcp?.[p])));
 
       const rows = model.players
         .map(p => ({ p, ...computePlayerTotals(round, p, holes) }))
@@ -529,9 +542,9 @@ head.append(left, right);
         const row = document.createElement("div");
         row.className = "leader-row";
 
-        const left = document.createElement("div");
-        left.className = "leader-left";
-        left.innerHTML = `
+        const lleft = document.createElement("div");
+        lleft.className = "leader-left";
+        lleft.innerHTML = `
           <div><b>${idx + 1}. ${x.p}</b></div>
           <div class="muted small">
             Thru ${x.filled}/${holes}
@@ -540,27 +553,27 @@ head.append(left, right);
           </div>
         `;
 
-        const right = document.createElement("div");
-        right.className = "leader-right";
+        const lright = document.createElement("div");
+        lright.className = "leader-right";
 
         const gross = document.createElement("div");
         gross.className = "leader-mono";
         gross.textContent = `G ${x.tot}`;
-        right.append(gross);
+        lright.append(gross);
 
         if (hasAnyHcp) {
           const net = document.createElement("div");
           net.className = "leader-mono";
           net.textContent = `N ${x.net}`;
-          right.append(net);
+          lright.append(net);
         }
 
         const vs = document.createElement("div");
         vs.className = `badge ${vsParClass(x.vs)}`;
         vs.textContent = formatVsPar(x.vs);
-        right.append(vs);
+        lright.append(vs);
 
-        row.append(left, right);
+        row.append(lleft, lright);
         board.append(row);
       });
     };
@@ -588,12 +601,19 @@ head.append(left, right);
       hcpInput.inputMode = "numeric";
       hcpInput.placeholder = "—";
       hcpInput.value = round.hcp[pName] ?? "";
+
+      const hv = document.createElement("span");
+      hv.className = "print-value";
+      hv.textContent = hcpInput.value || "";
+
       hcpInput.addEventListener("input", () => {
         round.hcp[pName] = hcpInput.value.replace(/[^\d-]/g, "").slice(0, 3);
+        hv.textContent = round.hcp[pName] || "";
         saveModel(model);
         refreshSnapshot();
       });
-      tdHcp.append(hcpInput);
+
+      tdHcp.append(hcpInput, hv);
       tr.append(tdHcp);
 
       const outSpan = document.createElement("span");
@@ -616,15 +636,22 @@ head.append(left, right);
         inp.className = "score-input";
         inp.inputMode = "numeric";
         inp.value = scores[h] ?? "";
+
+        const sv = document.createElement("span");
+        sv.className = "print-value";
+        sv.textContent = inp.value || "";
+
         inp.addEventListener("input", () => {
           const cleaned = inp.value.replace(/[^\d]/g, "").slice(0, 2);
           inp.value = cleaned;
+          sv.textContent = cleaned;
           scores[h] = cleaned;
           refreshRowTotals();
           saveModel(model);
           refreshSnapshot();
         });
-        td.append(inp);
+
+        td.append(inp, sv);
         tr.append(td);
 
         if (h === 8) {
@@ -688,6 +715,20 @@ head.append(left, right);
 export function bindPairingsUI(model) {
   ensurePairings(model);
 
+  // Reset print mode after printing so rounds reappear
+  if (!window.__gtp_afterprint_bound) {
+    window.__gtp_afterprint_bound = true;
+    window.addEventListener("afterprint", () => {
+      try {
+        model.ui.printRoundId = null;
+        saveModel(model);
+        renderPairings(model);
+      } catch {
+        // ignore
+      }
+    });
+  }
+
   document.getElementById("btnApplyPlayers").addEventListener("click", () => {
     const text = document.getElementById("playersInput").value;
     model.players = parsePlayers(text);
@@ -737,6 +778,9 @@ export function bindPairingsUI(model) {
   });
 
   document.getElementById("btnPrintAllScorecards")?.addEventListener("click", () => {
-    window.print();
+    model.ui.printRoundId = null; // print all rounds
+    saveModel(model);
+    renderPairings(model);
+    setTimeout(() => window.print(), 50);
   });
 }
