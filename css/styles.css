@@ -444,3 +444,4 @@ code{
   font-variant-numeric: tabular-nums;
   font-weight: 900;
 }
+.leader-right .leader-mono{ min-width: 58px; text-align:right; }

@@ -73,10 +73,15 @@ function computePlayerTotals(round, player, holes) {
   const inn = holes === 18 ? sumNums(scores, 9, 18) : 0;
   const tot = sumNums(scores, 0, holes);
 
+  const hcpRaw = round.hcp?.[player];
+  const hcp = Number.isFinite(Number(hcpRaw)) ? Number(hcpRaw) : 0;
+
   const parTot = sumNums(round.par || [], 0, holes);
   const delta = (filled > 0 && Number.isFinite(parTot)) ? (tot - parTot) : NaN;
 
-  return { filled, out, inn, tot, vs: delta };
+  const net = filled > 0 ? (tot - hcp) : NaN;
+
+  return { filled, out, inn, tot, hcp, net, vs: delta };
 }
 
 function wireGridNavigation(tableWrap) {
@@ -101,16 +106,22 @@ function wireGridNavigation(tableWrap) {
 }
 
 function renderSnapshotText(model, round, holes) {
+  const hasAnyHcp = model.players.some(p => Number.isFinite(Number(round.hcp?.[p])));
   const rows = model.players
     .map(p => ({ p, ...computePlayerTotals(round, p, holes) }))
     .filter(x => x.filled > 0)
-    .sort((a, b) => a.tot - b.tot)
+    .sort((a, b) => {
+  const aScore = hasAnyHcp ? a.net : a.tot;
+  const bScore = hasAnyHcp ? b.net : b.tot;
+  if (aScore !== bScore) return aScore - bScore;
+  return b.filled - a.filled; // ties: more holes completed first
+})
     .slice(0, 5);
 
   if (!rows.length) return `<div class="muted small">Enter scores and the leaderboard will show here.</div>`;
 
   const line = rows.map((x, i) =>
-    `${i + 1}. <b>${x.p}</b> ${x.tot} (${formatVsPar(x.vs)})`
+    `${i + 1}. <b>${x.p}</b> ${hasAnyHcp ? x.net : x.tot} (${formatVsPar(x.vs)})`
   ).join(" &nbsp; • &nbsp; ");
 
   return `<div class="muted small">${line}</div>`;
@@ -475,10 +486,17 @@ export function renderPairings(model) {
     const renderLeaderboard = () => {
       board.innerHTML = "";
 
-      const rows = model.players
-        .map(p => ({ p, ...computePlayerTotals(round, p, holes) }))
-        .filter(x => x.filled > 0)
-        .sort((a, b) => a.tot - b.tot);
+      const hasAnyHcp = model.players.some(p => Number.isFinite(Number(round.hcp?.[p])));
+
+const rows = model.players
+  .map(p => ({ p, ...computePlayerTotals(round, p, holes) }))
+  .filter(x => x.filled > 0)
+  .sort((a, b) => {
+    const aScore = hasAnyHcp ? a.net : a.tot;
+    const bScore = hasAnyHcp ? b.net : b.tot;
+    if (aScore !== bScore) return aScore - bScore;
+    return b.filled - a.filled; // ties: more holes first
+  });
 
       if (!rows.length) {
         const empty = document.createElement("div");
@@ -494,20 +512,36 @@ export function renderPairings(model) {
 
         const left = document.createElement("div");
         left.className = "leader-left";
-        left.innerHTML = `<div><b>${idx + 1}. ${x.p}</b></div><div class="muted small">${holes === 18 ? `OUT ${x.out} • IN ${x.inn}` : `OUT ${x.out}`}</div>`;
+        lleft.innerHTML = `
+  <div><b>${idx + 1}. ${x.p}</b></div>
+  <div class="muted small">
+    Thru ${x.filled}/${holes}
+    ${holes === 18 ? ` • OUT ${x.out} • IN ${x.inn}` : ` • OUT ${x.out}`}
+    ${hasAnyHcp ? ` • HCP ${x.hcp}` : ``}
+  </div>
+`;
 
         const right = document.createElement("div");
         right.className = "leader-right";
 
-        const total = document.createElement("div");
-        total.className = "leader-mono";
-        total.textContent = String(x.tot);
+        const gross = document.createElement("div");
+gross.className = "leader-mono";
+gross.textContent = `G ${x.tot}`;
 
-        const vs = document.createElement("div");
-        vs.className = `badge ${vsParClass(x.vs)}`;
-        vs.textContent = formatVsPar(x.vs);
+right.append(gross);
 
-        right.append(total, vs);
+if (hasAnyHcp) {
+  const net = document.createElement("div");
+  net.className = "leader-mono";
+  net.textContent = `N ${x.net}`;
+  right.append(net);
+}
+
+const vs = document.createElement("div");
+vs.className = `badge ${vsParClass(x.vs)}`;
+vs.textContent = formatVsPar(x.vs);
+
+right.append(vs);
         row.append(left, right);
         board.append(row);
       });
