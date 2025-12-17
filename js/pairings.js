@@ -512,7 +512,7 @@ const rows = model.players
 
         const left = document.createElement("div");
         left.className = "leader-left";
-        lleft.innerHTML = `
+        left.innerHTML = `
   <div><b>${idx + 1}. ${x.p}</b></div>
   <div class="muted small">
     Thru ${x.filled}/${holes}
