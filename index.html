@@ -26,11 +26,23 @@
 
   <main class="shell">
    <nav class="tabs" role="tablist" aria-label="Main navigation">
-  <button class="tab" role="tab" aria-selected="true" data-tab="itinerary">Itinerary</button>
+  <button class="tab" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="itinerary">Itinerary</button>
   <button class="tab" role="tab" aria-selected="false" data-tab="trip">Trip Details</button>
   <button class="tab" role="tab" aria-selected="false" data-tab="pairings">Pairings & Scores</button>
   <button class="tab" role="tab" aria-selected="false" data-tab="settings">Settings</button>
 </nav>
+
+<section class="panel" data-panel="overview" role="tabpanel">
+  <div class="panel-header">
+    <h2>Trip Overview</h2>
+    <div class="actions">
+      <button class="btn" id="btnPrintOverview">Print / Save PDF</button>
+    </div>
+  </div>
+
+  <div id="overviewContent" class="stack"></div>
+</section>
 
     <section class="panel" data-panel="itinerary" role="tabpanel">
       <div class="panel-header">

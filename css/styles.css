@@ -357,3 +357,12 @@ code{
 .score-table tbody tr:first-child td{
   background: rgba(24,196,124,.06);
 }
+@media print {
+  body { background: #fff !important; color: #000 !important; }
+  .topbar, .tabs, .actions, .footer, .hint { display:none !important; }
+  .panel { box-shadow:none !important; border: 0 !important; background: #fff !important; }
+  .card, .round-card { box-shadow:none !important; border: 1px solid #ddd !important; background:#fff !important; }
+  .score-input { border: 1px solid #bbb !important; color:#000 !important; background:#fff !important; }
+  a { color:#000 !important; text-decoration: underline; }
+  .table-wrap { overflow: visible !important; }
+}

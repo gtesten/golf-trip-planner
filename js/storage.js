@@ -1,4 +1,4 @@
-const KEY = "gtp:model:v1";
+const KEY = "gtp:model:v2";
 const SB_KEY = "gtp:supabase:v1";
 
 export function loadModel() {

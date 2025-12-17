@@ -4,8 +4,10 @@ import { bindItineraryUI, renderItinerary } from "./itinerary.js";
 import { bindPairingsUI, renderPairings } from "./pairings.js";
 import { getSupabaseClient } from "./supabaseClient.js";
 import { bindTripUI, renderTrip } from "./tripDetails.js";
+import { bindOverviewUI, renderOverview } from "./overview.js";
 
 const DEFAULT_MODEL = {
+  ui: { playersApplied: false },
   trip: {
     name: "",
     dates: "",
@@ -32,6 +34,8 @@ bindItineraryUI(model);
 renderItinerary(model);
 bindTripUI(model);
 renderTrip(model);
+bindOverviewUI(model);
+renderOverview(model);
 
 // ---- Pairings/Scores ----
 bindPairingsUI(model);
