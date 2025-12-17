@@ -353,6 +353,7 @@ code{
   font-weight: 950;
 }
 /* PAR row emphasis */
+
 .score-table tbody tr:first-child td{
   background: rgba(24,196,124,.06);
 }
