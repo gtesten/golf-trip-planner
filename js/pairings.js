@@ -258,32 +258,78 @@ export function renderPairings(model) {
     right.className = "actions";
 
     const btnActive = document.createElement("button");
-    btnActive.className = "btn secondary";
-    btnActive.textContent = (model.ui.openRoundId === round.id) ? "Active" : "Set active";
-    btnActive.disabled = (model.ui.openRoundId === round.id);
-    btnActive.addEventListener("click", () => {
-      model.ui.openRoundId = round.id;
-      saveModel(model);
-      renderPairings(model);
-    });
+btnActive.className = "btn secondary";
+btnActive.textContent = (model.ui.openRoundId === round.id) ? "Active" : "Set active";
+btnActive.disabled = (model.ui.openRoundId === round.id);
+btnActive.addEventListener("click", () => {
+  model.ui.openRoundId = round.id;
+  saveModel(model);
+  renderPairings(model);
+});
 
-    const btnPrint = document.createElement("button");
-    btnPrint.className = "btn secondary";
-    btnPrint.textContent = "Print";
-    btnPrint.addEventListener("click", () => window.print());
+// NEW: Duplicate round
+const btnDup = document.createElement("button");
+btnDup.className = "btn secondary";
+btnDup.textContent = "Duplicate";
+btnDup.title = "Duplicate this round (copies holes, PAR, and HCP; clears scores)";
+btnDup.addEventListener("click", () => {
+  const newId = crypto?.randomUUID?.() ?? String(Date.now());
+  const newRound = {
+    id: newId,
+    name: `${round.name || `Round ${r + 1}`} (Copy)`,
+    holes,
+    par: (round.par || []).slice(0, holes).map(v => String(v ?? "")),
+    hcp: { ...(round.hcp || {}) },
+    scores: makeEmptyScores(model.players, holes), // blank scores
+  };
 
-    const del = document.createElement("button");
-    del.className = "btn secondary";
-    del.textContent = "Delete";
-    del.addEventListener("click", () => {
-      model.rounds.splice(r, 1);
-      delete model.ui.roundViews[round.id];
-      if (model.ui.openRoundId === round.id) model.ui.openRoundId = null;
-      saveModel(model);
-      renderPairings(model);
-    });
+  model.rounds.push(newRound);
+  model.ui.openRoundId = newId;
+  model.ui.roundViews[newId] = model.ui.roundViews[round.id] || "scores";
 
-    right.append(btnActive, btnPrint, del);
+  saveModel(model);
+  renderPairings(model);
+});
+
+// NEW: Copy HCP from previous round
+const btnCopyHcp = document.createElement("button");
+btnCopyHcp.className = "btn secondary";
+btnCopyHcp.textContent = "Copy HCP";
+btnCopyHcp.title = "Copy handicaps from previous round";
+btnCopyHcp.addEventListener("click", () => {
+  const idx = model.rounds.findIndex(rr => rr.id === round.id);
+  const prev = idx > 0 ? model.rounds[idx - 1] : null;
+  if (!prev?.hcp) return;
+
+  round.hcp = round.hcp || {};
+  for (const p of model.players) {
+    if (prev.hcp[p] != null && prev.hcp[p] !== "") round.hcp[p] = prev.hcp[p];
+  }
+
+  saveModel(model);
+  renderPairings(model);
+});
+
+const btnPrint = document.createElement("button");
+btnPrint.className = "btn secondary";
+btnPrint.textContent = "Print";
+btnPrint.addEventListener("click", () => window.print());
+
+const del = document.createElement("button");
+del.className = "btn secondary";
+del.textContent = "Delete";
+del.addEventListener("click", () => {
+  model.rounds.splice(r, 1);
+  delete model.ui.roundViews[round.id];
+  if (model.ui.openRoundId === round.id) model.ui.openRoundId = null;
+  saveModel(model);
+  renderPairings(model);
+});
+
+// UPDATED: include new buttons
+right.append(btnActive, btnDup, btnCopyHcp, btnPrint, del);
+head.append(left, right);
+
     head.append(left, right);
 
     const isOpen = model.ui.openRoundId === round.id;

@@ -446,3 +446,5 @@ code{
 }
 .leader-right .leader-mono{ min-width: 58px; text-align:right; }
 .round-toggle + .round-toggle { margin-top: -2px; opacity: .98; }
+.round-head .actions { flex-wrap: wrap; justify-content: flex-end; }
+.round-head .actions .btn { margin-top: 6px; }
