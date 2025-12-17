@@ -27,14 +27,29 @@ function ensurePar(round, holes) {
   }
 }
 
+/** IMPORTANT: ignore "" (empty) so blanks don't count as 0 */
 function sumNums(arr, fromIdx, toIdxExclusive) {
   let t = 0;
   for (let i = fromIdx; i < toIdxExclusive; i++) {
-    const n = Number(arr[i]);
+    const v = arr[i];
+    if (v === "" || v == null) continue;
+    const n = Number(v);
     if (!Number.isFinite(n)) continue;
     t += n;
   }
   return t;
+}
+
+function countFilled(arr, fromIdx, toIdxExclusive) {
+  let c = 0;
+  for (let i = fromIdx; i < toIdxExclusive; i++) {
+    const v = arr[i];
+    if (v === "" || v == null) continue;
+    const n = Number(v);
+    if (!Number.isFinite(n)) continue;
+    c++;
+  }
+  return c;
 }
 
 function formatVsPar(delta) {
@@ -49,23 +64,21 @@ function vsParClass(delta) {
   return delta > 0 ? "pos" : "neg";
 }
 
-function isFilledNumber(v) {
-  if (v === "" || v == null) return false;
-  const n = Number(v);
-  return Number.isFinite(n);
-}
-
 function computePlayerTotals(round, player, holes) {
   const scores = round.scores[player] || [];
+  const filled = countFilled(scores, 0, holes);
+
   const out = sumNums(scores, 0, Math.min(9, holes));
   const inn = holes === 18 ? sumNums(scores, 9, 18) : 0;
   const tot = sumNums(scores, 0, holes);
+
   const parTot = sumNums(round.par || [], 0, holes);
-  return { out, inn, tot, vs: tot - parTot };
+  const delta = (filled > 0 && Number.isFinite(parTot)) ? (tot - parTot) : NaN;
+
+  return { filled, out, inn, tot, vs: delta };
 }
 
 function wireGridNavigation(tableWrap) {
-  // Enter -> next input; Arrow keys move
   tableWrap.addEventListener("keydown", (e) => {
     const t = e.target;
     if (!(t instanceof HTMLInputElement)) return;
@@ -81,9 +94,25 @@ function wireGridNavigation(tableWrap) {
     };
 
     if (e.key === "Enter") { e.preventDefault(); move(1); }
-    if (e.key === "ArrowRight") { move(1); }
-    if (e.key === "ArrowLeft") { move(-1); }
+    if (e.key === "ArrowRight") move(1);
+    if (e.key === "ArrowLeft") move(-1);
   });
+}
+
+function renderSnapshotText(model, round, holes) {
+  const rows = model.players
+    .map(p => ({ p, ...computePlayerTotals(round, p, holes) }))
+    .filter(x => x.filled > 0)
+    .sort((a, b) => a.tot - b.tot)
+    .slice(0, 5);
+
+  if (!rows.length) return `<div class="muted small">Enter scores and the leaderboard will show here.</div>`;
+
+  const line = rows.map((x, i) =>
+    `${i + 1}. <b>${x.p}</b> ${x.tot} (${formatVsPar(x.vs)})`
+  ).join(" &nbsp; • &nbsp; ");
+
+  return `<div class="muted small">${line}</div>`;
 }
 
 export function renderPairings(model) {
@@ -118,7 +147,6 @@ export function renderPairings(model) {
       <div class="card-title">Step 1 — Players</div>
       <div class="muted">
         Enter players (one per line) and click <b>Apply players</b>.
-        Rounds and scorecards will appear once players are applied.
       </div>
     `;
     container.append(empty);
@@ -130,7 +158,6 @@ export function renderPairings(model) {
     ? "Step 3: Enter scores (use Enter / Arrow keys to move)."
     : "Step 2: Create your first round.";
 
-  // Default open round: last created if none set
   if (!model.ui.openRoundId && model.rounds.length) {
     model.ui.openRoundId = model.rounds[model.rounds.length - 1].id;
   }
@@ -143,7 +170,6 @@ export function renderPairings(model) {
     round.scores ??= makeEmptyScores(model.players, holes);
     ensurePar(round, holes);
 
-    // Ensure players exist
     for (const p of model.players) {
       round.hcp[p] ??= "";
       round.scores[p] ??= Array.from({ length: holes }, () => "");
@@ -151,16 +177,8 @@ export function renderPairings(model) {
         round.scores[p] = Array.from({ length: holes }, (_, i) => round.scores[p][i] ?? "");
       }
     }
-    // Remove missing players
     for (const p of Object.keys(round.scores)) if (!model.players.includes(p)) delete round.scores[p];
     for (const p of Object.keys(round.hcp)) if (!model.players.includes(p)) delete round.hcp[p];
-
-    // Compute leaderboard snapshot
-    const leaderboard = model.players
-      .map(p => ({ p, ...computePlayerTotals(round, p, holes) }))
-      .filter(x => isFilledNumber(x.tot))
-      .sort((a, b) => a.tot - b.tot)
-      .slice(0, 5);
 
     const wrap = document.createElement("div");
     wrap.className = "round-card";
@@ -189,7 +207,7 @@ export function renderPairings(model) {
     const parTot = sumNums(round.par, 0, holes);
     const pillPar = document.createElement("span");
     pillPar.className = "pill";
-    pillPar.innerHTML = `<strong>${parTot}</strong> par`;
+    pillPar.innerHTML = `<strong>${Number.isFinite(parTot) ? parTot : 0}</strong> par`;
 
     left.append(title, pillHoles, pillPar);
 
@@ -222,31 +240,22 @@ export function renderPairings(model) {
     });
 
     right.append(btnActive, btnPrint, del);
-
     head.append(left, right);
 
-    // Body collapsible
     const isOpen = model.ui.openRoundId === round.id;
 
     const body = document.createElement("div");
     body.style.display = isOpen ? "block" : "none";
     body.style.marginTop = "10px";
 
-    // Leaderboard card (quick scan)
+    // Snapshot card (LIVE updated)
     const lb = document.createElement("div");
     lb.className = "card";
     lb.innerHTML = `
       <div class="card-title">Round snapshot</div>
-      ${
-        leaderboard.length
-          ? `<div class="muted small">${leaderboard.map((x, i) =>
-              `${i + 1}. <b>${x.p}</b> ${x.tot} (${formatVsPar(x.vs)})`
-            ).join(" &nbsp; • &nbsp; ")}</div>`
-          : `<div class="muted small">Enter a few scores and the leaderboard will show here.</div>`
-      }
+      <div data-snapshot="${round.id}">${renderSnapshotText(model, round, holes)}</div>
     `;
 
-    // Table
     const tableWrap = document.createElement("div");
     tableWrap.className = "table-wrap";
 
@@ -289,6 +298,7 @@ export function renderPairings(model) {
       parOutSpan.textContent = String(sumNums(round.par, 0, Math.min(9, holes)));
       if (holes === 18) parInSpan.textContent = String(sumNums(round.par, 9, 18));
       parTotSpan.textContent = String(sumNums(round.par, 0, holes));
+      pillPar.innerHTML = `<strong>${sumNums(round.par, 0, holes)}</strong> par`;
     }
 
     for (let h = 0; h < holes; h++) {
@@ -302,6 +312,7 @@ export function renderPairings(model) {
         inp.value = cleaned;
         round.par[h] = cleaned;
         saveModel(model);
+        // simple/robust: rerender so all vs-par badges recalc correctly
         renderPairings(model);
       });
       td.append(inp);
@@ -329,6 +340,12 @@ export function renderPairings(model) {
     refreshParTotals();
     tbody.append(trPar);
 
+    // helper to refresh snapshot only
+    const refreshSnapshot = () => {
+      const node = container.querySelector(`[data-snapshot="${round.id}"]`);
+      if (node) node.innerHTML = renderSnapshotText(model, round, holes);
+    };
+
     // Player rows
     model.players.forEach((pName) => {
       const scores = round.scores[pName];
@@ -355,11 +372,10 @@ export function renderPairings(model) {
       const vsSpan = document.createElement("span");
 
       function refreshRowTotals() {
-        const { out, inn, tot, vs } = computePlayerTotals(round, pName, holes);
+        const { out, inn, tot, vs, filled } = computePlayerTotals(round, pName, holes);
         outSpan.textContent = String(out);
         if (holes === 18) inSpan.textContent = String(inn);
-        totSpan.textContent = String(tot);
-
+        totSpan.textContent = filled > 0 ? String(tot) : "—";
         const txt = formatVsPar(vs);
         vsSpan.textContent = txt;
         vsSpan.className = `badge ${vsParClass(vs)}`;
@@ -377,6 +393,7 @@ export function renderPairings(model) {
           scores[h] = cleaned;
           refreshRowTotals();
           saveModel(model);
+          refreshSnapshot(); // ✅ live update snapshot
         });
         td.append(inp);
         tr.append(td);
@@ -451,7 +468,7 @@ export function bindPairingsUI(model) {
     };
 
     model.rounds.push(newRound);
-    model.ui.openRoundId = newRound.id; // open immediately
+    model.ui.openRoundId = newRound.id;
     saveModel(model);
     renderPairings(model);
     nameEl.value = "";
