@@ -1,138 +1,84 @@
-import { buildShareUrl, downloadModelJson } from "./share.js";
-import { saveModel } from "./storage.js"; // only used when importing
-
-function safeLink(url) {
-  if (!url) return "";
-  try {
-    const u = new URL(url);
-    return u.href;
-  } catch {
-    return "";
-  }
-}
+// js/overview.js
 
 export function renderOverview(model) {
-  const root = document.getElementById("overviewContent");
-  root.innerHTML = "";
+  const root = document.querySelector("#overviewRoot");
+  if (!root) return;
 
-  const trip = model.trip ?? {};
-  const tripName = trip.name || "Your Golf Trip";
-  const roster = (trip.roster || "").trim();
-  const map = safeLink(trip.mapLink || "");
+  const tripName = model?.tripName ?? "My Golf Trip";
+  const dates = model?.dates ?? "";
+  const location = model?.location ?? "";
 
-  const actions = document.createElement("div");
-actions.className = "row";
-actions.style.gap = "10px";
-actions.style.flexWrap = "wrap";
+  root.innerHTML = `
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Overview</h2>
+        <div class="panel-actions">
+          <button id="overviewSaveBtn" class="btn btn-primary" type="button">Save</button>
+        </div>
+      </div>
 
-const btnShare = document.createElement("button");
-btnShare.className = "btn";
-btnShare.textContent = "Copy Share Link";
-btnShare.disabled = !!window.__GTP_READONLY__;
-btnShare.addEventListener("click", async () => {
-  const url = buildShareUrl(model);
-  await navigator.clipboard.writeText(url);
-  btnShare.textContent = "Copied ✅";
-  setTimeout(() => (btnShare.textContent = "Copy Share Link"), 1200);
-});
+      <div class="grid grid-3">
+        <label class="field">
+          <span class="field-label">Trip Name</span>
+          <input id="tripNameInput" class="input" type="text" value="${escapeHtml(tripName)}" />
+        </label>
 
-const btnDownload = document.createElement("button");
-btnDownload.className = "btn secondary";
-btnDownload.textContent = "Download JSON";
-btnDownload.addEventListener("click", () => {
-  downloadModelJson(model);
-});
+        <label class="field">
+          <span class="field-label">Dates</span>
+          <input id="tripDatesInput" class="input" type="text" value="${escapeHtml(dates)}" placeholder="e.g., June 12–15" />
+        </label>
 
-const file = document.createElement("input");
-file.type = "file";
-file.accept = "application/json";
-file.style.display = "none";
+        <label class="field">
+          <span class="field-label">Location</span>
+          <input id="tripLocationInput" class="input" type="text" value="${escapeHtml(location)}" placeholder="e.g., Boyne / Forest Dunes" />
+        </label>
+      </div>
 
-const btnImport = document.createElement("button");
-btnImport.className = "btn secondary";
-btnImport.textContent = "Import JSON";
-btnImport.disabled = !!window.__GTP_READONLY__;
-btnImport.addEventListener("click", () => file.click());
-
-file.addEventListener("change", async () => {
-  const f = file.files?.[0];
-  if (!f) return;
-  try {
-    const text = await f.text();
-    const imported = JSON.parse(text);
-
-    // Replace current model in-place (keep same object reference if your app depends on it)
-    Object.keys(model).forEach(k => delete model[k]);
-    Object.assign(model, imported);
-
-    saveModel(model);
-    window.location.search = ""; // exit share mode if any
-  } catch (e) {
-    alert("Import failed. Is this a valid Golf Trip Planner JSON file?");
-    console.error(e);
-  } finally {
-    file.value = "";
-  }
-});
-
-actions.append(btnShare, btnDownload, btnImport, file);
-root.append(actions);
-  // Trip summary card
-  const c1 = document.createElement("div");
-  c1.className = "card";
-  c1.innerHTML = `
-    <div class="card-title">${tripName}</div>
-    <div class="muted">
-      ${trip.dates ? `<div><b>Dates:</b> ${trip.dates}</div>` : ""}
-      ${trip.location ? `<div><b>Location:</b> ${trip.location}</div>` : ""}
-      ${trip.lodging ? `<div><b>Lodging:</b> ${trip.lodging}</div>` : ""}
-      ${map ? `<div><b>Map:</b> <a href="${map}" target="_blank" rel="noreferrer">${map}</a></div>` : ""}
-    </div>
-    ${trip.notes ? `<div class="divider"></div><div>${trip.notes.replaceAll("\n","<br>")}</div>` : ""}
+      <div class="muted" style="margin-top:12px">
+        Tip: Fill this out first — it drives the header and share/export later.
+      </div>
+    </section>
   `;
-  root.appendChild(c1);
-
-  // Roster
-  if (roster) {
-    const c2 = document.createElement("div");
-    c2.className = "card";
-    c2.innerHTML = `
-      <div class="card-title">Roster</div>
-      <div>${roster.replaceAll("\n","<br>")}</div>
-    `;
-    root.appendChild(c2);
-  }
-
-  // Itinerary summary (first 5 days shown)
-  const itin = Array.isArray(model.itinerary) ? model.itinerary : [];
-  const c3 = document.createElement("div");
-  c3.className = "card";
-  const items = itin.slice(0, 5).map((d, i) => {
-    const label = d.label || `Day ${i + 1}`;
-    const notes = (d.notes || "").split("\n").slice(0, 3).join(" • ");
-    return `<li><b>${label}:</b> ${notes || ""}</li>`;
-  }).join("");
-  c3.innerHTML = `
-    <div class="card-title">Itinerary Snapshot</div>
-    ${itin.length ? `<ul>${items}</ul>` : `<div class="muted">No itinerary yet.</div>`}
-    ${itin.length > 5 ? `<div class="muted small">Showing first 5 days.</div>` : ""}
-  `;
-  root.appendChild(c3);
-
-  // Rounds summary
-  const rounds = Array.isArray(model.rounds) ? model.rounds : [];
-  const c4 = document.createElement("div");
-  c4.className = "card";
-  c4.innerHTML = `
-    <div class="card-title">Rounds</div>
-    ${rounds.length ? `<ol>${rounds.map(r => `<li>${r.name || "Round"} (${r.holes || 18} holes)</li>`).join("")}</ol>` : `<div class="muted">No rounds created yet.</div>`}
-  `;
-  root.appendChild(c4);
-
 }
 
-export function bindOverviewUI(model) {
-  document.getElementById("btnPrintOverview").addEventListener("click", () => {
-    window.print(); // browser print -> Save as PDF
+export function bindOverviewUI(model, { onChange } = {}) {
+  // All selectors guarded to prevent your exact "null addEventListener" error
+  const saveBtn = document.querySelector("#overviewSaveBtn");
+  const nameEl = document.querySelector("#tripNameInput");
+  const datesEl = document.querySelector("#tripDatesInput");
+  const locEl = document.querySelector("#tripLocationInput");
+
+  if (!saveBtn || !nameEl || !datesEl || !locEl) return;
+
+  const emit = () => {
+    const next = {
+      ...model,
+      tripName: nameEl.value.trim(),
+      dates: datesEl.value.trim(),
+      location: locEl.value.trim(),
+    };
+    onChange?.(next);
+    return next;
+  };
+
+  // live update
+  [nameEl, datesEl, locEl].forEach(el => {
+    el.addEventListener("input", () => emit());
   });
+
+  // save click (app.mjs decides what "save" means)
+  saveBtn.addEventListener("click", () => {
+    emit();
+    saveBtn.textContent = "Saved ✓";
+    window.setTimeout(() => (saveBtn.textContent = "Save"), 900);
+  });
+}
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

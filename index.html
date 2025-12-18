@@ -5,141 +5,46 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Golf Trip Planner</title>
 
-  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 
 <body>
   <header class="topbar">
     <div class="brand">
-      <div class="brand-title">Golf Trip Planner</div>
-      <div class="brand-subtitle muted">Plan the trip • Track the rounds • Share the overview</div>
+      <div class="brand-mark">⛳</div>
+      <div class="brand-text">
+        <div class="brand-title">Golf Trip Planner</div>
+        <div class="brand-subtitle">Plan • Pair • Score</div>
+      </div>
     </div>
-  </header>
 
-  <!-- Tabs -->
-  <nav class="tabs" aria-label="Primary">
-    <button class="tab-btn" data-tab="overview" aria-selected="true">Overview</button>
-    <button class="tab-btn" data-tab="itinerary" aria-selected="false">Itinerary</button>
-    <button class="tab-btn" data-tab="tripDetails" aria-selected="false">Trip Details</button>
-    <button class="tab-btn" data-tab="pairings" aria-selected="false">Pairings &amp; Scores</button>
-    <button class="tab-btn" data-tab="settings" aria-selected="false">Settings</button>
-  </nav>
+    <nav class="tabs" aria-label="Primary">
+      <button class="tab active" type="button" data-tab="overview">Overview</button>
+      <button class="tab" type="button" data-tab="itinerary">Itinerary</button>
+      <button class="tab" type="button" data-tab="pairings">Pairings &amp; Scores</button>
+      <button class="tab" type="button" data-tab="trip">Trip Details</button>
+    </nav>
+  </header>
 
   <main class="container">
     <!-- OVERVIEW -->
-    <section data-panel="overview">
-      <!-- Your overview.js should render into one of these -->
+    <section id="tab-overview" class="tab-panel" data-tab-panel="overview">
       <div id="overviewRoot"></div>
-      <div id="overviewContainer"></div>
     </section>
 
     <!-- ITINERARY -->
-    <section data-panel="itinerary" style="display:none;">
-      <!-- Your itinerary.js should render into one of these -->
+    <section id="tab-itinerary" class="tab-panel" data-tab-panel="itinerary" hidden>
       <div id="itineraryRoot"></div>
-      <div id="itineraryContainer"></div>
+    </section>
+
+    <!-- PAIRINGS -->
+    <section id="tab-pairings" class="tab-panel" data-tab-panel="pairings" hidden>
+      <div id="pairingsRoot"></div>
     </section>
 
     <!-- TRIP DETAILS -->
-    <section data-panel="tripDetails" style="display:none;">
-      <div class="card">
-        <div class="card-title">Trip Details</div>
-
-        <div class="row" style="gap:10px; flex-wrap:wrap;">
-          <div style="flex:1; min-width:240px;">
-            <label class="muted small">Trip name</label>
-            <input id="tripName" class="input" placeholder="e.g., Boyne 2026" />
-          </div>
-          <div style="flex:1; min-width:240px;">
-            <label class="muted small">Dates</label>
-            <input id="tripDates" class="input" placeholder="e.g., Aug 14–17" />
-          </div>
-        </div>
-
-        <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:10px;">
-          <div style="flex:1; min-width:240px;">
-            <label class="muted small">Location</label>
-            <input id="tripLocation" class="input" placeholder="City / Resort" />
-          </div>
-          <div style="flex:1; min-width:240px;">
-            <label class="muted small">Lodging</label>
-            <input id="tripLodging" class="input" placeholder="Hotel / House" />
-          </div>
-        </div>
-
-        <div style="margin-top:10px;">
-          <label class="muted small">Map link</label>
-          <input id="tripMapLink" class="input" placeholder="Google Maps URL" />
-        </div>
-
-        <div style="margin-top:10px;">
-          <label class="muted small">Notes</label>
-          <textarea id="tripNotes" placeholder="Anything important…"></textarea>
-        </div>
-
-        <div style="margin-top:10px;">
-          <label class="muted small">Roster</label>
-          <textarea id="tripRoster" placeholder="Rooming, arrivals, phone numbers, etc."></textarea>
-        </div>
-
-        <div class="row" style="gap:8px; margin-top:10px; flex-wrap:wrap;">
-          <button id="btnTripClear" class="btn secondary">Clear Trip Details</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- PAIRINGS & SCORES -->
-    <section data-panel="pairings" style="display:none;">
-      <div class="card">
-        <div class="card-title">Pairings &amp; Scores</div>
-
-        <div class="row" style="gap:10px; align-items:flex-start; flex-wrap:wrap;">
-          <div style="flex:1; min-width:260px;">
-            <label class="muted small">Players (one per line)</label>
-            <textarea id="playersInput" placeholder="Player 1&#10;Player 2&#10;Player 3"></textarea>
-
-            <div class="muted small" style="margin-top:6px;">
-              <span id="playersCount">0 players</span>
-            </div>
-
-            <div class="row" style="gap:8px; margin-top:10px; flex-wrap:wrap;">
-              <button id="btnApplyPlayers" class="btn">Apply players</button>
-              <button id="btnResetScores" class="btn secondary">Reset scores</button>
-              <button id="btnPrintAllScorecards" class="btn secondary">Print all</button>
-            </div>
-          </div>
-
-          <div style="min-width:260px;">
-            <label class="muted small">New round</label>
-            <div class="row" style="gap:8px; flex-wrap:wrap;">
-              <input id="roundNameInput" class="input" placeholder="Round name" style="min-width:180px;" />
-              <select id="holesSelect" class="input">
-                <option value="18">18 holes</option>
-                <option value="9">9 holes</option>
-              </select>
-              <button id="btnCreateRound" class="btn">Create round</button>
-              <button id="btnAddRound" class="btn secondary">Add round</button>
-            </div>
-
-            <div id="pairingsSubtitle" class="muted" style="margin-top:10px;"></div>
-          </div>
-        </div>
-      </div>
-
-      <div id="roundsContainer" style="margin-top:12px;"></div>
-    </section>
-
-    <!-- SETTINGS -->
-    <section data-panel="settings" style="display:none;">
-      <div id="settingsRoot"></div>
-      <div id="settingsContainer"></div>
-
-      <!-- If you haven’t built settings yet, this will still show something -->
-      <div class="card">
-        <div class="card-title">Settings</div>
-        <div class="muted">Settings coming soon.</div>
-      </div>
+    <section id="tab-trip" class="tab-panel" data-tab-panel="trip" hidden>
+      <div id="tripRoot"></div>
     </section>
   </main>
 

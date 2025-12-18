@@ -1,98 +1,101 @@
 // js/app.mjs
-import { loadModel, saveModel } from "./storage.js";
-import { initTabs, setActiveTab } from "./tabs.js";
 
 import * as overview from "./overview.js";
 import * as itinerary from "./itinerary.js";
 import * as pairings from "./pairings.js";
 import * as tripDetails from "./tripDetails.js";
-import * as settings from "./settings.js";
+import * as storage from "./storage.js";
+import * as tabs from "./tabs.js";
 
-import { readShareModelFromUrl } from "./share.js";
-
-console.log("[GolfTripPlanner] app.mjs loaded");
+console.log("[GolfTripPlanner] main.js loaded");
+console.log("[GolfTripPlanner] main.js loaded at", new Date().toISOString());
 
 function safeCall(fn, ...args) {
   try {
-    if (typeof fn === "function") return fn(...args);
-  } catch (e) {
-    console.error("[GolfTripPlanner] error calling function:", fn?.name || fn, e);
+    if (typeof fn !== "function") return;
+    return fn(...args);
+  } catch (err) {
+    console.error("[GolfTripPlanner] error calling function:", fn?.name ?? "anonymous", err);
   }
-  return undefined;
 }
 
-// model must be re-assignable
-let model = loadModel();
+function loadModel() {
+  // Try your storage module if it exists
+  const fromStorage =
+    (typeof storage?.loadModel === "function" && safeCall(storage.loadModel)) ||
+    (typeof storage?.getModel === "function" && safeCall(storage.getModel));
 
-// Share mode detection
-const shared = readShareModelFromUrl();
-if (shared) {
-  window.__GTP_READONLY__ = true;
-  model = shared;
-} else {
-  window.__GTP_READONLY__ = false;
+  // Fallback minimal model
+  return (
+    fromStorage || {
+      tripName: "My Golf Trip",
+      dates: "",
+      location: "",
+      itineraryDays: [],
+      players: [],
+      rounds: [],
+    }
+  );
 }
 
-// Guard saves in share mode (so nothing persists / loops)
-const _save = saveModel;
-window.__GTP_SAVE__ = (m) => {
-  if (window.__GTP_READONLY__) return;
-  _save(m);
-};
-
-function enterShareModeOverviewOnly() {
-  document.body.classList.add("share-mode");
-
-  // Hide all tab buttons
-  document.querySelectorAll("[data-tab]").forEach((btn) => {
-    btn.style.display = "none";
-  });
-
-  // Hide all panels
-  document.querySelectorAll("[data-panel]").forEach((p) => {
-    p.style.display = "none";
-  });
-
-  // Show only Overview button/panel (if present)
-  const overviewBtn = document.querySelector('[data-tab="overview"]');
-  const overviewPanel = document.querySelector('[data-panel="overview"]');
-  if (overviewBtn) overviewBtn.style.display = "";
-  if (overviewPanel) overviewPanel.style.display = "";
-
-  // Render Overview only (read-only)
-  safeCall(overview.renderOverview, model);
-  safeCall(overview.bindOverviewUI, model);
+function saveModel(model) {
+  if (typeof storage?.saveModel === "function") return safeCall(storage.saveModel, model);
+  if (typeof storage?.setModel === "function") return safeCall(storage.setModel, model);
+  // no-op fallback
 }
 
 function bootNormalMode() {
-  // Tabs
-  safeCall(initTabs);
+  let model = loadModel();
 
-  // Bind UI handlers
-  safeCall(overview.bindOverviewUI, model);
-  safeCall(itinerary.bindItineraryUI, model);
-  safeCall(pairings.bindPairingsUI, model);
-
-  // Trip Details: your file uses renderTrip(model)
-  safeCall(tripDetails.renderTrip, model);
-
-  // Render all tab content
+  // Render FIRST (fixes your null innerHTML errors)
   safeCall(overview.renderOverview, model);
   safeCall(itinerary.renderItinerary, model);
-  safeCall(pairings.renderPairings, model);
-  safeCall(tripDetails.renderTrip, model); // safe to call again; your render likely binds + redraws
-  
 
-  // Default tab
-  safeCall(setActiveTab, "overview");
+  // Pairings: support either renderPairingsFromModel(model) or renderPairings(model)
+  safeCall(pairings.renderPairingsFromModel, model);
+  safeCall(pairings.renderPairings, model);
+
+  // Trip Details: support renderTrip(model) or renderTripDetails(model)
+  safeCall(tripDetails.renderTrip, model);
+  safeCall(tripDetails.renderTripDetails, model);
+
+  // Bind AFTER render (fixes your null addEventListener errors)
+  safeCall(overview.bindOverviewUI, model, {
+    onChange: next => {
+      model = next;
+      saveModel(model);
+    },
+  });
+
+  safeCall(itinerary.bindItineraryUI, model, {
+    onChange: next => {
+      model = next;
+      saveModel(model);
+    },
+  });
+
+  // If these exist, bind them too
+  safeCall(pairings.bindPairingsUI, model, {
+    onChange: next => {
+      model = next;
+      saveModel(model);
+    },
+  });
+
+  safeCall(tripDetails.bindTripUI, model, {
+    onChange: next => {
+      model = next;
+      saveModel(model);
+    },
+  });
+
+  // Tabs last
+  safeCall(tabs.initTabs, "overview");
 }
 
-// Boot
-if (window.__GTP_READONLY__) {
-  enterShareModeOverviewOnly();
+// Ensure DOM is ready
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootNormalMode);
 } else {
   bootNormalMode();
 }
-
-// Debug handle
-window.__GTP_MODEL__ = model;

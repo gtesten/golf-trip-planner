@@ -8,6 +8,46 @@ export function ensurePairings(model) {
   model.rounds ??= [];
 }
 
+// If Pairings panel markup is missing, inject it
+const panel = document.querySelector('[data-panel="pairings"]') || document.querySelector('[data-panel="pairings-scores"]');
+if (panel && !document.getElementById("playersInput")) {
+  panel.innerHTML = `
+    <div class="card">
+      <div class="card-title">Pairings & Scores</div>
+
+      <div class="row" style="gap:10px; align-items:flex-start; flex-wrap:wrap;">
+        <div style="flex:1; min-width:260px;">
+          <label class="muted small">Players (one per line)</label>
+          <textarea id="playersInput" placeholder="Player 1&#10;Player 2&#10;Player 3"></textarea>
+          <div class="muted small" style="margin-top:6px;">
+            <span id="playersCount">0 players</span>
+          </div>
+          <div class="row" style="gap:8px; margin-top:10px; flex-wrap:wrap;">
+            <button id="btnApplyPlayers" class="btn">Apply players</button>
+            <button id="btnResetScores" class="btn secondary">Reset scores</button>
+            <button id="btnPrintAllScorecards" class="btn secondary">Print all</button>
+          </div>
+        </div>
+
+        <div style="min-width:260px;">
+          <label class="muted small">New round</label>
+          <div class="row" style="gap:8px; flex-wrap:wrap;">
+            <input id="roundNameInput" class="input" placeholder="Round name" style="min-width:180px;" />
+            <select id="holesSelect" class="input">
+              <option value="18">18 holes</option>
+              <option value="9">9 holes</option>
+            </select>
+            <button id="btnCreateRound" class="btn">Create round</button>
+            <button id="btnAddRound" class="btn secondary">Add round</button>
+          </div>
+          <div id="pairingsSubtitle" class="muted" style="margin-top:10px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="roundsContainer" style="margin-top:12px;"></div>
+  `;
+}
 export function parsePlayers(text) {
   return text
     .split("\n")
