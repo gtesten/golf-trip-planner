@@ -15,7 +15,7 @@ export function fromBase64Url(b64url) {
 
 export function buildShareUrl(model) {
   // Keep it lightweight: remove transient UI state that isn't needed for a share view
-  const clean = structuredClone(model);
+  const clean = JSON.parse(JSON.stringify(model));
   if (clean.ui) {
     delete clean.ui.printRoundId;
     delete clean.ui.openRoundId;

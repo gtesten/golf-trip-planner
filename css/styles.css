@@ -472,3 +472,5 @@ code{
   }
   input.score-input { display: none !important; } /* print values as text only */
 }
+body.share-mode .tabs { display: none !important; }
+body.share-mode header { display: none !important; }

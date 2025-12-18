@@ -1,131 +1,87 @@
-import { initTabs } from "./tabs.js";
-import { loadModel, saveModel, resetModel, loadSupabaseConfig, saveSupabaseConfig, clearSupabaseConfig } from "./storage.js";
-import { bindItineraryUI, renderItinerary } from "./itinerary.js";
-import { bindPairingsUI, renderPairings } from "./pairings.js";
-import { getSupabaseClient } from "./supabaseClient.js";
-import { bindTripUI, renderTrip } from "./tripDetails.js";
-import { bindOverviewUI, renderOverview } from "./overview.js";
+// js/app.mjs
+import { loadModel, saveModel } from "./storage.js";
+import { initTabs, setActiveTab } from "./tabs.js";
+
+import { renderOverview, bindOverviewUI } from "./overview.js";
+import { renderItinerary, bindItineraryUI } from "./itinerary.js";
+import { renderPairings, bindPairingsUI } from "./pairings.js";
+import { renderTripDetails, bindTripDetailsUI } from "./tripDetails.js";
+
 import { readShareModelFromUrl } from "./share.js";
 
-const DEFAULT_MODEL = {
-  ui: { playersApplied: false },
-  trip: {
-    name: "",
-    dates: "",
-    location: "",
-    lodging: "",
-    mapLink: "",
-    notes: "",
-    roster: ""
-  },
-  itinerary: [],
-  players: [],
-  rounds: []
-};
+console.log("[GolfTripPlanner] app.mjs loaded");
 
-const model = loadModel() ?? structuredClone(DEFAULT_MODEL);
-saveModel(model);
+// --- Load model (must be re-assignable) ---
+let model = loadModel();
 
-document.getElementById("year").textContent = new Date().getFullYear();
-
-// 1) If URL has a share payload, use it (read-only mode)
+// --- Share mode detection ---
 const shared = readShareModelFromUrl();
 if (shared) {
   window.__GTP_READONLY__ = true;
-  model = shared; // <-- use the shared model
+  model = shared;
 } else {
   window.__GTP_READONLY__ = false;
-  // existing loadModel() logic stays as-is
 }
 
-initTabs({ defaultTab: "itinerary" });
+// --- Global save guard (optional safety net) ---
+const _saveModel = saveModel;
+window.__GTP_SAVE__ = (m) => {
+  if (window.__GTP_READONLY__) return;
+  _saveModel(m);
+};
 
-// ---- Itinerary ----
-bindItineraryUI(model);
-renderItinerary(model);
-bindTripUI(model);
-renderTrip(model);
-bindOverviewUI(model);
-renderOverview(model);
+// --- Utilities to force Overview-only UI in share mode ---
+function enterShareModeOverviewOnly() {
+  document.body.classList.add("share-mode");
 
-// ---- Pairings/Scores ----
-bindPairingsUI(model);
-renderPairings(model);
+  // Hide all tab buttons
+  document.querySelectorAll("[data-tab]").forEach((btn) => {
+    btn.style.display = "none";
+  });
 
-// ---- Settings: Supabase + import/export ----
-const sbUrl = document.getElementById("sbUrl");
-const sbAnon = document.getElementById("sbAnon");
-const btnSaveSupabase = document.getElementById("btnSaveSupabase");
-const btnClearSupabase = document.getElementById("btnClearSupabase");
-const btnExport = document.getElementById("btnExport");
-const importFile = document.getElementById("importFile");
+  // Hide all panels
+  document.querySelectorAll("[data-panel]").forEach((panel) => {
+    panel.style.display = "none";
+  });
 
-function setStatus(text, ok = true) {
-  document.getElementById("statusText").textContent = text;
-  const dot = document.querySelector("#statusPill .dot");
-  dot.style.background = ok ? "var(--green)" : "rgba(239,68,68,1)";
-  dot.style.boxShadow = ok ? "0 0 0 6px rgba(24,196,124,.15)" : "0 0 0 6px rgba(239,68,68,.15)";
+  // Show Overview tab button + panel only (if present)
+  const overviewBtn = document.querySelector('[data-tab="overview"]');
+  const overviewPanel = document.querySelector('[data-panel="overview"]');
+
+  if (overviewBtn) overviewBtn.style.display = "";
+  if (overviewPanel) overviewPanel.style.display = "";
+
+  // Render Overview only
+  renderOverview(model);
+
+  // Bind overview UI (should internally disable editing in read-only mode)
+  if (typeof bindOverviewUI === "function") bindOverviewUI(model);
 }
 
-function refreshSupabaseInputs() {
-  const cfg = loadSupabaseConfig();
-  sbUrl.value = cfg.url;
-  sbAnon.value = cfg.anon;
+function enterNormalMode() {
+  // Tabs + bindings
+  initTabs();
+
+  if (typeof bindOverviewUI === "function") bindOverviewUI(model);
+  if (typeof bindItineraryUI === "function") bindItineraryUI(model);
+  if (typeof bindPairingsUI === "function") bindPairingsUI(model);
+  if (typeof bindTripDetailsUI === "function") bindTripDetailsUI(model);
+
+  // Initial renders
+  renderOverview(model);
+  renderItinerary(model);
+  renderPairings(model);
+  renderTripDetails(model);
+
+  setActiveTab("overview");
 }
-refreshSupabaseInputs();
 
-// Keep Overview in sync with edits anywhere (Trip Details, Itinerary, Pairings, etc.)
-window.addEventListener("gtp:model:changed", (e) => {
-  renderOverview(e.detail);
-});
+// --- Boot ---
+if (window.__GTP_READONLY__) {
+  enterShareModeOverviewOnly();
+} else {
+  enterNormalMode();
+}
 
-btnSaveSupabase.addEventListener("click", async () => {
-  saveSupabaseConfig({ url: sbUrl.value.trim(), anon: sbAnon.value.trim() });
-  refreshSupabaseInputs();
-  const client = await getSupabaseClient();
-  setStatus(client ? "Supabase configured" : "Local mode", !!client);
-});
-
-btnClearSupabase.addEventListener("click", () => {
-  clearSupabaseConfig();
-  refreshSupabaseInputs();
-  setStatus("Local mode", true);
-});
-
-btnExport.addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(model, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "golf-trip-planner-export.json";
-  a.click();
-  URL.revokeObjectURL(url);
-});
-
-importFile.addEventListener("change", async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  const text = await file.text();
-  try {
-    const data = JSON.parse(text);
-    // basic shape guard
-    model.itinerary = Array.isArray(data.itinerary) ? data.itinerary : [];
-    model.players = Array.isArray(data.players) ? data.players : [];
-    model.rounds = Array.isArray(data.rounds) ? data.rounds : [];
-    saveModel(model);
-    renderItinerary(model);
-    renderPairings(model);
-    setStatus("Imported (local)", true);
-  } catch {
-    setStatus("Import failed (invalid JSON)", false);
-  } finally {
-    importFile.value = "";
-  }
-});
-
-// Initial status
-getSupabaseClient().then(c => setStatus(c ? "Supabase configured" : "Local mode", true));
-
-// Extra: emergency reset via console if needed:
-// window.__GTP_RESET__ = () => { resetModel(); location.reload(); };
-window.__GTP_RESET__ = () => { resetModel(); location.reload(); };
+// Optional: expose for debugging
+window.__GTP_MODEL__ = model;
