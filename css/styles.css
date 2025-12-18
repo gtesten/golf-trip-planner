@@ -474,3 +474,142 @@ code{
 }
 body.share-mode .tabs { display: none !important; }
 body.share-mode header { display: none !important; }
+/* ===========================
+   PAIRINGS SCORECARD FIT + PRINT
+   =========================== */
+
+.table-block { margin-top: 10px; }
+.table-title{
+  font-weight: 800;
+  margin: 8px 0;
+}
+
+.scorecard-header{
+  display:flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.scorecard-summary{
+  margin-top: 10px;
+}
+
+/* Keep tables contained; allow scroll only if needed */
+.table-scroll{
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(148,163,184,.25);
+  background: rgba(255,255,255,.98);
+}
+
+/* Compact score tables */
+.score-table{
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.score-table th,
+.score-table td{
+  border-bottom: 1px solid rgba(148,163,184,.18);
+  padding: 8px 6px;
+  text-align: center;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.score-table th.player,
+.score-table td.player{
+  text-align: left;
+  width: 160px;
+  font-weight: 700;
+}
+
+.score-table th.hole,
+.score-table td.hole{
+  width: 44px;
+}
+
+.score-table th.subtotal,
+.score-table td.subtotal{
+  width: 72px;
+  font-weight: 800;
+}
+
+.score-table thead .par-row th{
+  background: rgba(15,23,42,.03);
+  font-weight: 800;
+}
+
+/* Inputs */
+.score-input,
+.par-input{
+  width: 38px;
+  height: 32px;
+  font-weight: 800;
+  text-align: center;
+  background: #fff;
+  border: 1px solid rgba(148,163,184,.45);
+  border-radius: 8px;
+}
+
+.par-input{
+  background: rgba(5,150,105,.06);
+  border-color: rgba(5,150,105,.25);
+}
+
+/* Totals table */
+.totals-table{
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.totals-table th,
+.totals-table td{
+  border-bottom: 1px solid rgba(148,163,184,.18);
+  padding: 8px 6px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.totals-table th.player,
+.totals-table td.player{
+  text-align: left;
+  width: 160px;
+  font-weight: 800;
+}
+.totals-table th.num,
+.totals-table td.num{
+  text-align: center;
+  width: 88px;
+  font-weight: 700;
+}
+.totals-table thead .par-row th{
+  background: rgba(15,23,42,.03);
+  font-weight: 800;
+}
+
+/* Vs Par styling */
+.vs-over{ color: #b91c1c; font-weight: 900; }
+.vs-even{ color: #0f172a; font-weight: 900; }
+.vs-under{ color: #047857; font-weight: 900; }
+
+/* Print-to-PDF: hide app chrome, keep just selected round */
+@media print{
+  header.topbar, .tabs, .panel-actions, .muted { display: none !important; }
+  body { background: #fff !important; }
+  .container { max-width: none !important; padding: 0 !important; }
+  .card, .panel { box-shadow: none !important; border: none !important; }
+  .table-scroll{ overflow: visible !important; border: none !important; }
+}
+
+/* When printing a specific round only */
+body[data-print-round] .round-card{ display: none; }
+body[data-print-round="0"] .round-card[data-round-card="0"]{ display:block; }
+body[data-print-round="1"] .round-card[data-round-card="1"]{ display:block; }
+body[data-print-round="2"] .round-card[data-round-card="2"]{ display:block; }
+body[data-print-round="3"] .round-card[data-round-card="3"]{ display:block; }
+/* If you might have more than 4 rounds, add more lines, or tell me and I’ll make it dynamic */
