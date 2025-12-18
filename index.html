@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Golf Trip Planner</title>
+
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
@@ -11,214 +12,136 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark" aria-hidden="true">⛳</div>
-      <div class="brand-text">
-        <div class="brand-title">Golf Trip Planner</div>
-        <div class="brand-subtitle">Itinerary • Pairings • Scores</div>
-      </div>
-    </div>
-
-    <div class="status" id="statusPill" aria-live="polite">
-      <span class="dot" aria-hidden="true"></span>
-      <span id="statusText">Local mode</span>
+      <div class="brand-title">Golf Trip Planner</div>
+      <div class="brand-subtitle muted">Plan the trip • Track the rounds • Share the overview</div>
     </div>
   </header>
 
-  <main class="shell">
-   <nav class="tabs" role="tablist" aria-label="Main navigation">
-  <button class="tab" role="tab" aria-selected="true" data-tab="overview">Overview</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="itinerary">Itinerary</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="trip">Trip Details</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="pairings">Pairings & Scores</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="settings">Settings</button>
-</nav>
+  <!-- Tabs -->
+  <nav class="tabs" aria-label="Primary">
+    <button class="tab-btn" data-tab="overview" aria-selected="true">Overview</button>
+    <button class="tab-btn" data-tab="itinerary" aria-selected="false">Itinerary</button>
+    <button class="tab-btn" data-tab="tripDetails" aria-selected="false">Trip Details</button>
+    <button class="tab-btn" data-tab="pairings" aria-selected="false">Pairings &amp; Scores</button>
+    <button class="tab-btn" data-tab="settings" aria-selected="false">Settings</button>
+  </nav>
 
-<section class="panel" data-panel="overview" role="tabpanel">
-  <div class="panel-header">
-    <h2>Trip Overview</h2>
-    <div class="actions">
-      <button class="btn" id="btnPrintOverview">Print / Save PDF</button>
-    </div>
-  </div>
-
-  <div id="overviewContent" class="stack"></div>
-</section>
-
-    <section class="panel" data-panel="itinerary" role="tabpanel">
-      <div class="panel-header">
-        <h2>Itinerary</h2>
-        <div class="actions">
-          <button class="btn" id="btnAddDay">+ Add day</button>
-          <button class="btn secondary" id="btnClearItinerary">Clear</button>
-        </div>
-      </div>
-
-      <div id="itineraryList" class="stack"></div>
-
-      <div class="hint">
-        Tip: add time like <code>7:30 AM</code> and keep notes short. Everything autosaves locally.
-      </div>
+  <main class="container">
+    <!-- OVERVIEW -->
+    <section data-panel="overview">
+      <!-- Your overview.js should render into one of these -->
+      <div id="overviewRoot"></div>
+      <div id="overviewContainer"></div>
     </section>
 
-    <section class="panel" data-panel="trip" role="tabpanel" hidden>
-  <div class="panel-header">
-    <h2>Trip Details</h2>
-    <div class="actions">
-      <button class="btn secondary" id="btnTripClear">Clear</button>
-    </div>
-  </div>
+    <!-- ITINERARY -->
+    <section data-panel="itinerary" style="display:none;">
+      <!-- Your itinerary.js should render into one of these -->
+      <div id="itineraryRoot"></div>
+      <div id="itineraryContainer"></div>
+    </section>
 
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-title">Overview</div>
+    <!-- TRIP DETAILS -->
+    <section data-panel="tripDetails" style="display:none;">
+      <div class="card">
+        <div class="card-title">Trip Details</div>
 
-      <div class="form">
-        <label class="label">
-          Trip name
-          <input id="tripName" class="input" placeholder="Forest Dunes 2026" />
-        </label>
-
-        <label class="label">
-          Dates
-          <input id="tripDates" class="input" placeholder="June 12–15, 2026" />
-        </label>
-
-        <label class="label">
-          Location
-          <input id="tripLocation" class="input" placeholder="Roscommon, MI" />
-        </label>
-
-        <label class="label">
-          Lodging
-          <input id="tripLodging" class="input" placeholder="On-site cabins / hotel name" />
-        </label>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Links & Notes</div>
-
-      <div class="form">
-        <label class="label">
-          Address / Google Maps link
-          <input id="tripMapLink" class="input" placeholder="https://maps.google.com/..." />
-        </label>
-
-        <label class="label">
-          Notes
-          <textarea id="tripNotes" class="textarea" placeholder="Check-in time, tee time rules, dinners, reminders..."></textarea>
-        </label>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Roster</div>
-    <p class="muted small">Optional: use this for a “who’s coming” list separate from Players (scoring).</p>
-    <textarea id="tripRoster" class="textarea" placeholder="Glenn&#10;Cristina&#10;..."></textarea>
-  </div>
-</section>
-
-    <section class="panel" data-panel="pairings" role="tabpanel" hidden>
-      <div class="panel-header">
-  <div>
-    <h2>Pairings & Scores</h2>
-    <div class="muted small" id="pairingsSubtitle">Step 1: Add players to begin.</div>
-  </div>
-
-  <div class="actions">
-    <button class="btn" id="btnAddRound" disabled>+ Add round</button>
-    <button class="btn secondary" id="btnResetScores" disabled>Reset scores</button>
-    <button class="btn secondary" id="btnPrintAllScorecards" disabled>Print all</button>
-  </div>
-</div>
-
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">Players</div>
-          <p class="muted">One per line. Example: <code>Glenn</code></p>
-          <textarea id="playersInput" class="textarea" placeholder="Glenn&#10;Cristina&#10;Grant&#10;Paul"></textarea>
-          <div class="row">
-            <button class="btn" id="btnApplyPlayers">Apply players</button>
-            <span class="muted small" id="playersCount">0 players</span>
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:240px;">
+            <label class="muted small">Trip name</label>
+            <input id="tripName" class="input" placeholder="e.g., Boyne 2026" />
+          </div>
+          <div style="flex:1; min-width:240px;">
+            <label class="muted small">Dates</label>
+            <input id="tripDates" class="input" placeholder="e.g., Aug 14–17" />
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-title">Round settings</div>
-          <div class="form">
-            <label class="label">
-              Round name
-              <input id="roundNameInput" class="input" placeholder="Day 1 – Chardon Lakes" />
-            </label>
+        <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:10px;">
+          <div style="flex:1; min-width:240px;">
+            <label class="muted small">Location</label>
+            <input id="tripLocation" class="input" placeholder="City / Resort" />
+          </div>
+          <div style="flex:1; min-width:240px;">
+            <label class="muted small">Lodging</label>
+            <input id="tripLodging" class="input" placeholder="Hotel / House" />
+          </div>
+        </div>
 
-            <label class="label">
-              Holes
-              <select id="holesSelect" class="select">
-                <option value="18" selected>18</option>
-                <option value="9">9</option>
-              </select>
-            </label>
+        <div style="margin-top:10px;">
+          <label class="muted small">Map link</label>
+          <input id="tripMapLink" class="input" placeholder="Google Maps URL" />
+        </div>
 
-            <div class="row">
-              <button class="btn" id="btnCreateRound">Create round</button>
-              <span class="muted small">Creates a score grid below</span>
+        <div style="margin-top:10px;">
+          <label class="muted small">Notes</label>
+          <textarea id="tripNotes" placeholder="Anything important…"></textarea>
+        </div>
+
+        <div style="margin-top:10px;">
+          <label class="muted small">Roster</label>
+          <textarea id="tripRoster" placeholder="Rooming, arrivals, phone numbers, etc."></textarea>
+        </div>
+
+        <div class="row" style="gap:8px; margin-top:10px; flex-wrap:wrap;">
+          <button id="btnTripClear" class="btn secondary">Clear Trip Details</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAIRINGS & SCORES -->
+    <section data-panel="pairings" style="display:none;">
+      <div class="card">
+        <div class="card-title">Pairings &amp; Scores</div>
+
+        <div class="row" style="gap:10px; align-items:flex-start; flex-wrap:wrap;">
+          <div style="flex:1; min-width:260px;">
+            <label class="muted small">Players (one per line)</label>
+            <textarea id="playersInput" placeholder="Player 1&#10;Player 2&#10;Player 3"></textarea>
+
+            <div class="muted small" style="margin-top:6px;">
+              <span id="playersCount">0 players</span>
+            </div>
+
+            <div class="row" style="gap:8px; margin-top:10px; flex-wrap:wrap;">
+              <button id="btnApplyPlayers" class="btn">Apply players</button>
+              <button id="btnResetScores" class="btn secondary">Reset scores</button>
+              <button id="btnPrintAllScorecards" class="btn secondary">Print all</button>
             </div>
           </div>
+
+          <div style="min-width:260px;">
+            <label class="muted small">New round</label>
+            <div class="row" style="gap:8px; flex-wrap:wrap;">
+              <input id="roundNameInput" class="input" placeholder="Round name" style="min-width:180px;" />
+              <select id="holesSelect" class="input">
+                <option value="18">18 holes</option>
+                <option value="9">9 holes</option>
+              </select>
+              <button id="btnCreateRound" class="btn">Create round</button>
+              <button id="btnAddRound" class="btn secondary">Add round</button>
+            </div>
+
+            <div id="pairingsSubtitle" class="muted" style="margin-top:10px;"></div>
+          </div>
         </div>
       </div>
 
-      <div id="roundsContainer" class="stack"></div>
+      <div id="roundsContainer" style="margin-top:12px;"></div>
     </section>
 
-    <section class="panel" data-panel="settings" role="tabpanel" hidden>
-      <div class="panel-header">
-        <h2>Settings</h2>
-      </div>
+    <!-- SETTINGS -->
+    <section data-panel="settings" style="display:none;">
+      <div id="settingsRoot"></div>
+      <div id="settingsContainer"></div>
 
+      <!-- If you haven’t built settings yet, this will still show something -->
       <div class="card">
-        <div class="card-title">Supabase (optional)</div>
-        <p class="muted">
-          If you don’t configure Supabase, the site works 100% in local mode.
-        </p>
-
-        <div class="form">
-          <label class="label">
-            Supabase URL
-            <input id="sbUrl" class="input" placeholder="https://xxxx.supabase.co" />
-          </label>
-
-          <label class="label">
-            Supabase anon key
-            <input id="sbAnon" class="input" placeholder="eyJhbGciOi..." />
-          </label>
-
-          <div class="row">
-            <button class="btn" id="btnSaveSupabase">Save</button>
-            <button class="btn secondary" id="btnClearSupabase">Clear</button>
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="row">
-            <button class="btn secondary" id="btnExport">Export JSON</button>
-            <label class="btn secondary" for="importFile" style="cursor:pointer;">
-              Import JSON
-            </label>
-            <input id="importFile" type="file" accept="application/json" hidden />
-          </div>
-
-          <p class="muted small">
-            Export/import is great for quick backups or moving between devices.
-          </p>
-        </div>
+        <div class="card-title">Settings</div>
+        <div class="muted">Settings coming soon.</div>
       </div>
     </section>
   </main>
-
-  <footer class="footer">
-    <span class="muted small">© <span id="year"></span> Golf Trip Planner</span>
-  </footer>
 
   <script type="module" src="./js/app.mjs"></script>
 </body>
