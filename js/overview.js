@@ -1,3 +1,6 @@
+import { buildShareUrl, downloadModelJson } from "./share.js";
+import { saveModel } from "./storage.js"; // only used when importing
+
 function safeLink(url) {
   if (!url) return "";
   try {
@@ -17,6 +20,63 @@ export function renderOverview(model) {
   const roster = (trip.roster || "").trim();
   const map = safeLink(trip.mapLink || "");
 
+  const actions = document.createElement("div");
+actions.className = "row";
+actions.style.gap = "10px";
+actions.style.flexWrap = "wrap";
+
+const btnShare = document.createElement("button");
+btnShare.className = "btn";
+btnShare.textContent = "Copy Share Link";
+btnShare.disabled = !!window.__GTP_READONLY__;
+btnShare.addEventListener("click", async () => {
+  const url = buildShareUrl(model);
+  await navigator.clipboard.writeText(url);
+  btnShare.textContent = "Copied ✅";
+  setTimeout(() => (btnShare.textContent = "Copy Share Link"), 1200);
+});
+
+const btnDownload = document.createElement("button");
+btnDownload.className = "btn secondary";
+btnDownload.textContent = "Download JSON";
+btnDownload.addEventListener("click", () => {
+  downloadModelJson(model);
+});
+
+const file = document.createElement("input");
+file.type = "file";
+file.accept = "application/json";
+file.style.display = "none";
+
+const btnImport = document.createElement("button");
+btnImport.className = "btn secondary";
+btnImport.textContent = "Import JSON";
+btnImport.disabled = !!window.__GTP_READONLY__;
+btnImport.addEventListener("click", () => file.click());
+
+file.addEventListener("change", async () => {
+  const f = file.files?.[0];
+  if (!f) return;
+  try {
+    const text = await f.text();
+    const imported = JSON.parse(text);
+
+    // Replace current model in-place (keep same object reference if your app depends on it)
+    Object.keys(model).forEach(k => delete model[k]);
+    Object.assign(model, imported);
+
+    saveModel(model);
+    window.location.search = ""; // exit share mode if any
+  } catch (e) {
+    alert("Import failed. Is this a valid Golf Trip Planner JSON file?");
+    console.error(e);
+  } finally {
+    file.value = "";
+  }
+});
+
+actions.append(btnShare, btnDownload, btnImport, file);
+root.append(actions);
   // Trip summary card
   const c1 = document.createElement("div");
   c1.className = "card";

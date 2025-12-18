@@ -5,6 +5,7 @@ import { bindPairingsUI, renderPairings } from "./pairings.js";
 import { getSupabaseClient } from "./supabaseClient.js";
 import { bindTripUI, renderTrip } from "./tripDetails.js";
 import { bindOverviewUI, renderOverview } from "./overview.js";
+import { readShareModelFromUrl } from "./share.js";
 
 const DEFAULT_MODEL = {
   ui: { playersApplied: false },
@@ -26,6 +27,16 @@ const model = loadModel() ?? structuredClone(DEFAULT_MODEL);
 saveModel(model);
 
 document.getElementById("year").textContent = new Date().getFullYear();
+
+// 1) If URL has a share payload, use it (read-only mode)
+const shared = readShareModelFromUrl();
+if (shared) {
+  window.__GTP_READONLY__ = true;
+  model = shared; // <-- use the shared model
+} else {
+  window.__GTP_READONLY__ = false;
+  // existing loadModel() logic stays as-is
+}
 
 initTabs({ defaultTab: "itinerary" });
 
