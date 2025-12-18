@@ -686,3 +686,72 @@ body[data-print-round="3"] .round-card[data-round-card="3"]{ display:block; }
   color: rgba(255,255,255,.92);
   font-weight: 900;
 }
+/* ===========================
+   PAIRINGS & SCORES VISIBILITY FIX
+   =========================== */
+
+/* Ensure the Pairings root + cards are visible on dark backgrounds */
+#pairingsRoot,
+#pairingsRoot .panel,
+#pairingsRoot .card{
+  color: rgba(255,255,255,.92);
+}
+
+/* Panel header/title/buttons inside Pairings */
+#pairingsRoot .panel-header{
+  color: rgba(255,255,255,.95);
+}
+
+#pairingsRoot .panel-title{
+  color: rgba(255,255,255,.95);
+}
+
+/* Buttons in Pairings shouldn't wash out */
+#pairingsRoot .btn{
+  color: rgba(255,255,255,.95);
+  border-color: rgba(255,255,255,.18);
+}
+#pairingsRoot .btn:hover{
+  border-color: rgba(255,255,255,.28);
+}
+#pairingsRoot .btn:disabled{
+  opacity: .55;
+}
+
+/* Labels + muted text: make it readable on dark */
+#pairingsRoot .muted,
+#pairingsRoot .field-label{
+  color: rgba(255,255,255,.72);
+}
+
+/* The scorecard tables themselves are light; keep their text dark */
+#pairingsRoot .table-scroll{
+  background: rgba(255,255,255,.98);
+}
+#pairingsRoot .score-table,
+#pairingsRoot .totals-table{
+  color: rgba(15,23,42,.95);
+}
+
+/* Make "Front 9" / "Back 9" titles readable */
+#pairingsRoot .table-title{
+  color: rgba(255,255,255,.92);
+}
+
+/* Group header line */
+#pairingsRoot .scorecard-header{
+  color: rgba(255,255,255,.9);
+}
+#pairingsRoot .scorecard-header .muted{
+  color: rgba(255,255,255,.75);
+}
+
+/* IMPORTANT: prevent parent overflow from clipping content */
+.tab-panel,
+.panel,
+.round-card,
+.card{
+  overflow: visible !important;
+}
+
+/* If you have a global rule like .round-card{overflow:hidden} this overrides it */
