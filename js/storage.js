@@ -26,7 +26,7 @@ export async function loadModel() {
       .from("trips")
       .select("id, name, model")
       .eq("id", tripId)
-      .eq("user_id", user.id)
+      .eq("owner_id", user.id)
       .maybeSingle();
 
     if (!error && data?.model) return normalizeModel(data.model, data.id);
@@ -36,7 +36,7 @@ export async function loadModel() {
   const { data: latest, error: latestErr } = await supabase
     .from("trips")
     .select("id, name, model")
-    .eq("user_id", user.id)
+    .eq("owner_id", user.id)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -83,7 +83,7 @@ export async function saveModel(model) {
     .from("trips")
     .update({ model: cleaned })
     .eq("id", tripId)
-    .eq("user_id", user.id);
+    .eq("owner_id", user.id)
 
   if (error) throw error;
 }
