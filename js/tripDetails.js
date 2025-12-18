@@ -1,111 +1,93 @@
-import { saveModel } from "./storage.js";
+// js/tripDetails.js
+// Renders into #tripRoot and binds safely.
 
-export function ensureTrip(model) {
-  model.trip ??= {
-    name: "",
-    dates: "",
-    location: "",
-    lodging: "",
-    mapLink: "",
-    notes: "",
-    roster: ""
-  };
+export function renderTripDetails(model) {
+  renderTrip(model);
 }
 
 export function renderTrip(model) {
-  ensureTrip(model);
-const panel = document.querySelector('[data-panel="tripDetails"]') || document.querySelector('[data-panel="trip-details"]');
-if (panel && !document.getElementById("tripRoster")) {
-  panel.innerHTML = `
-    <div class="card">
-      <div class="card-title">Trip Details</div>
+  const root = document.querySelector("#tripRoot");
+  if (!root) return;
 
-      <div class="row" style="gap:10px; flex-wrap:wrap;">
-        <div style="flex:1; min-width:240px;">
-          <label class="muted small">Trip name</label>
-          <input id="tripName" class="input" placeholder="e.g., Boyne 2026" />
-        </div>
-        <div style="flex:1; min-width:240px;">
-          <label class="muted small">Dates</label>
-          <input id="tripDates" class="input" placeholder="e.g., Aug 14–17" />
-        </div>
-      </div>
+  const lodging = model?.lodging ?? "";
+  const address = model?.lodgingAddress ?? "";
+  const budget = model?.budget ?? "";
+  const notes = model?.tripNotes ?? "";
 
-      <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:10px;">
-        <div style="flex:1; min-width:240px;">
-          <label class="muted small">Location</label>
-          <input id="tripLocation" class="input" placeholder="City / Resort" />
-        </div>
-        <div style="flex:1; min-width:240px;">
-          <label class="muted small">Lodging</label>
-          <input id="tripLodging" class="input" placeholder="Hotel / House" />
+  root.innerHTML = `
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Trip Details</h2>
+        <div class="panel-actions">
+          <button id="tripSaveBtn" class="btn btn-primary" type="button">Save</button>
         </div>
       </div>
 
-      <div style="margin-top:10px;">
-        <label class="muted small">Map link</label>
-        <input id="tripMapLink" class="input" placeholder="Google Maps URL" />
-      </div>
+      <div class="grid grid-2" style="margin-top:12px">
+        <label class="field">
+          <span class="field-label">Lodging</span>
+          <input id="lodgingInput" class="input" type="text" value="${escapeHtml(lodging)}" placeholder="Hotel / Airbnb name" />
+        </label>
 
-      <div style="margin-top:10px;">
-        <label class="muted small">Notes</label>
-        <textarea id="tripNotes" placeholder="Anything important…"></textarea>
-      </div>
+        <label class="field">
+          <span class="field-label">Budget (optional)</span>
+          <input id="budgetInput" class="input" type="text" value="${escapeHtml(budget)}" placeholder="e.g., $3,000" />
+        </label>
 
-      <div style="margin-top:10px;">
-        <label class="muted small">Roster / group notes</label>
-        <textarea id="tripRoster" placeholder="Rooming assignments, arrival times, etc."></textarea>
-      </div>
+        <label class="field" style="grid-column: span 2;">
+          <span class="field-label">Address</span>
+          <input id="addressInput" class="input" type="text" value="${escapeHtml(address)}" placeholder="Street, City, State" />
+        </label>
 
-      <div class="row" style="gap:8px; margin-top:10px; flex-wrap:wrap;">
-        <button id="btnTripClear" class="btn secondary">Clear Trip Details</button>
+        <label class="field" style="grid-column: span 2;">
+          <span class="field-label">Notes</span>
+          <textarea id="tripNotesInput" class="textarea" rows="6" placeholder="Check-in time, groceries, transportation, tee time policies...">${escapeHtml(notes)}</textarea>
+        </label>
       </div>
-    </div>
+    </section>
   `;
 }
 
-  const t = model.trip;
-  const byId = (id) => document.getElementById(id);
+export function bindTripUI(model, { onChange } = {}) {
+  const root = document.querySelector("#tripRoot");
+  if (!root) return;
 
-  byId("tripName").value = t.name ?? "";
-  byId("tripDates").value = t.dates ?? "";
-  byId("tripLocation").value = t.location ?? "";
-  byId("tripLodging").value = t.lodging ?? "";
-  byId("tripMapLink").value = t.mapLink ?? "";
-  byId("tripNotes").value = t.notes ?? "";
-  byId("tripRoster").value = t.roster ?? "";
-}
+  const lodgingEl = root.querySelector("#lodgingInput");
+  const budgetEl = root.querySelector("#budgetInput");
+  const addressEl = root.querySelector("#addressInput");
+  const notesEl = root.querySelector("#tripNotesInput");
+  const saveBtn = root.querySelector("#tripSaveBtn");
 
-export function bindTripUI(model) {
-  ensureTrip(model);
+  if (!lodgingEl || !budgetEl || !addressEl || !notesEl || !saveBtn) return;
 
-  const bind = (id, key) => {
-    const el = document.getElementById(id);
-    el.addEventListener("input", () => {
-      model.trip[key] = el.value;
-      saveModel(model);
-    });
+  const emit = () => {
+    const next = {
+      ...model,
+      lodging: lodgingEl.value.trim(),
+      budget: budgetEl.value.trim(),
+      lodgingAddress: addressEl.value.trim(),
+      tripNotes: notesEl.value,
+    };
+    onChange?.(next);
+    return next;
   };
 
-  bind("tripName", "name");
-  bind("tripDates", "dates");
-  bind("tripLocation", "location");
-  bind("tripLodging", "lodging");
-  bind("tripMapLink", "mapLink");
-  bind("tripNotes", "notes");
-  bind("tripRoster", "roster");
-
-  document.getElementById("btnTripClear").addEventListener("click", () => {
-    model.trip = {
-      name: "",
-      dates: "",
-      location: "",
-      lodging: "",
-      mapLink: "",
-      notes: "",
-      roster: ""
-    };
-    saveModel(model);
-    renderTrip(model);
+  [lodgingEl, budgetEl, addressEl, notesEl].forEach(el => {
+    el.addEventListener("input", () => emit());
   });
+
+  saveBtn.addEventListener("click", () => {
+    emit();
+    saveBtn.textContent = "Saved ✓";
+    window.setTimeout(() => (saveBtn.textContent = "Save"), 900);
+  });
+}
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
