@@ -1061,3 +1061,76 @@ body[data-print-round="3"] .round-card[data-round-card="3"]{ display:block; }
 }
 .gtp-toast[data-mode="ok"]{ border-color: rgba(5,150,105,.35); }
 .gtp-toast[data-mode="err"]{ border-color: rgba(185,28,28,.35); }
+/* ===========================
+   Pairings toolbar (Round picker + stats)
+   =========================== */
+
+.pairings-sticky{
+  position: sticky;
+  top: 10px;
+  z-index: 50;
+}
+
+.pairings-toolbar{
+  display:flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items:flex-end;
+  padding: 12px;
+}
+
+.pairings-toolbar .toolbar-left{
+  display:flex;
+  gap: 14px;
+  align-items:flex-end;
+  flex: 1;
+  min-width: 0;
+}
+.pairings-toolbar .toolbar-right{
+  display:flex;
+  gap: 10px;
+  align-items:flex-end;
+  flex-wrap: wrap;
+}
+
+.stats-ribbon{
+  display:flex;
+  gap: 10px;
+  align-items:stretch;
+  flex-wrap: wrap;
+}
+
+.stats-ribbon .stat{
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(148,163,184,.18);
+  border-radius: 14px;
+  padding: 10px 12px;
+  min-width: 104px;
+}
+
+.stats-ribbon .k{
+  font-weight: 900;
+  font-size: 16px;
+  color: rgba(255,255,255,.92);
+}
+.stats-ribbon .l{
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(255,255,255,.68);
+  font-weight: 800;
+}
+
+/* Mobile: stack toolbar nicely */
+@media (max-width: 860px){
+  .pairings-toolbar{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pairings-toolbar .toolbar-left{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pairings-toolbar .toolbar-right{
+    justify-content: flex-start;
+  }
+}

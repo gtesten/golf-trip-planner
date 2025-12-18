@@ -1,10 +1,14 @@
 // /js/pairings.js
-// Pairings & Scores v3
-// - Players gate: no rounds until Apply Players
-// - Per-hole PAR inputs per round (round.par[])
-// - Front 9 / Back 9 tables + Totals (Front/Back/Total/Vs Par)
-// - Vs Par formatting (+2 / E / -1) with correct handling when scores are blank
-// - Print scorecard per round (print-to-PDF)
+// Pairings & Scores v4
+// Adds:
+// - Round selector (renders one round at a time)
+// - Quick stats ribbon (players/groups/holes/par/status)
+// Keeps:
+// - Players gate + Apply Players
+// - Per-hole PAR inputs per round
+// - Front/Back/Total + Vs Par
+// - Print scorecard per round
+// - Correct handling of blank scoring (— instead of -par)
 
 export function renderPairingsFromModel(model) {
   renderPairings(model);
@@ -18,6 +22,16 @@ export function renderPairings(model) {
   const rounds = Array.isArray(model?.rounds) ? model.rounds : [];
 
   const playersApplied = players.length > 0;
+
+  // Selected round index (store on model so it persists across tabs/saves)
+  const selectedIdx =
+    Number.isFinite(Number(model?.ui?.pairingsRoundIndex))
+      ? Number(model.ui.pairingsRoundIndex)
+      : 0;
+
+  const safeSelectedIdx = Math.min(Math.max(selectedIdx, 0), Math.max(0, rounds.length - 1));
+
+  const selectedRound = rounds[safeSelectedIdx];
 
   root.innerHTML = `
     <section class="panel">
@@ -64,7 +78,7 @@ export function renderPairings(model) {
           </div>
 
           <div class="muted" style="margin-top:10px">
-            Scorecards render as <b>Front 9</b> + <b>Back 9</b> so inputs fit cleanly.
+            Tip: Use the round picker below to keep the page clean.
           </div>
         </div>
       </div>
@@ -72,7 +86,7 @@ export function renderPairings(model) {
       <div id="roundsContainer" class="stack" style="margin-top:14px">
         ${
           playersApplied
-            ? (rounds.length ? rounds.map((r, idx) => renderRoundCard(r, idx, model)).join("") : renderEmptyRounds())
+            ? renderRoundPickerAndSelected(rounds, safeSelectedIdx, selectedRound, model)
             : renderPlayersGate()
         }
       </div>
@@ -92,9 +106,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
   const playersPerGroupEl = root.querySelector("#playersPerGroup");
   const roundsContainer = root.querySelector("#roundsContainer");
 
-  if (!playersInput || !applyPlayersBtn || !addRoundBtn || !saveBtn || !defaultHolesEl || !playersPerGroupEl || !roundsContainer) {
-    return;
-  }
+  if (!playersInput || !applyPlayersBtn || !addRoundBtn || !saveBtn || !defaultHolesEl || !playersPerGroupEl || !roundsContainer) return;
 
   const emit = (next) => {
     onChange?.(next);
@@ -107,7 +119,9 @@ export function bindPairingsUI(model, { onChange } = {}) {
       .map(s => s.trim())
       .filter(Boolean);
 
-  // Apply players (unlocks rounds)
+  const selectedIdx = Number.isFinite(Number(model?.ui?.pairingsRoundIndex)) ? Number(model.ui.pairingsRoundIndex) : 0;
+
+  // Apply players
   applyPlayersBtn.addEventListener("click", () => {
     const players = parsePlayersFromTextarea();
     const next = {
@@ -130,7 +144,6 @@ export function bindPairingsUI(model, { onChange } = {}) {
     model = next;
     emit(next);
 
-    // Re-render so future rounds use new default; existing rounds keep their holes
     renderPairings(model);
     bindPairingsUI(model, { onChange });
   });
@@ -141,6 +154,23 @@ export function bindPairingsUI(model, { onChange } = {}) {
     emit(next);
   });
 
+  // Round picker change
+  const picker = roundsContainer.querySelector("#pairingsRoundSelect");
+  if (picker) {
+    picker.addEventListener("change", () => {
+      const idx = Number(picker.value);
+      const next = {
+        ...model,
+        ui: { ...(model.ui ?? {}), pairingsRoundIndex: Number.isFinite(idx) ? idx : 0 },
+      };
+      model = next;
+      emit(next);
+
+      renderPairings(model);
+      bindPairingsUI(model, { onChange });
+    });
+  }
+
   // Add round
   addRoundBtn.addEventListener("click", () => {
     const players = Array.isArray(model?.players) ? model.players : [];
@@ -150,9 +180,13 @@ export function bindPairingsUI(model, { onChange } = {}) {
     const ppg = Number(model?.playersPerGroup) || 4;
     const round = makeNewRound(players, holes, ppg);
 
+    const nextRounds = [...(Array.isArray(model?.rounds) ? model.rounds : []), round];
+    const nextIdx = nextRounds.length - 1;
+
     const next = {
       ...model,
-      rounds: [...(Array.isArray(model?.rounds) ? model.rounds : []), round],
+      rounds: nextRounds,
+      ui: { ...(model.ui ?? {}), pairingsRoundIndex: nextIdx },
     };
 
     model = next;
@@ -169,7 +203,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
     window.setTimeout(() => (saveBtn.textContent = "Save"), 900);
   });
 
-  // Click handlers inside rounds
+  // Delegated clicks within selected round
   roundsContainer.addEventListener("click", (e) => {
     const removeBtn = e.target.closest("[data-remove-round]");
     if (removeBtn) {
@@ -177,7 +211,13 @@ export function bindPairingsUI(model, { onChange } = {}) {
       if (!Number.isFinite(idx)) return;
 
       const rounds = (Array.isArray(model?.rounds) ? model.rounds : []).filter((_, i) => i !== idx);
-      const next = { ...model, rounds };
+      const nextIdx = Math.min(Number(model?.ui?.pairingsRoundIndex ?? 0), Math.max(0, rounds.length - 1));
+
+      const next = {
+        ...model,
+        rounds,
+        ui: { ...(model.ui ?? {}), pairingsRoundIndex: nextIdx },
+      };
       model = next;
       emit(next);
 
@@ -223,7 +263,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
     }
   });
 
-  // Input handlers inside rounds (title/course/par/score)
+  // Delegated inputs within selected round
   roundsContainer.addEventListener("input", (e) => {
     const el = e.target;
     const roundCard = el.closest("[data-round-card]");
@@ -236,7 +276,6 @@ export function bindPairingsUI(model, { onChange } = {}) {
     const r = rounds[rIdx];
     if (!r) return;
 
-    // meta
     if (el.matches("[data-round-title]")) {
       rounds[rIdx] = { ...r, title: el.value };
       model = { ...model, rounds };
@@ -252,7 +291,6 @@ export function bindPairingsUI(model, { onChange } = {}) {
 
     const holes = Number(r.holes) || Number(model?.defaultHoles) || 18;
 
-    // PAR edits
     if (el.matches("[data-par]")) {
       const hIdx = Number(el.getAttribute("data-h"));
       if (!Number.isFinite(hIdx)) return;
@@ -265,10 +303,10 @@ export function bindPairingsUI(model, { onChange } = {}) {
       emit(model);
 
       updateRoundComputed(roundCard, holes, par);
+      updateStatsRibbon(roundsContainer, rounds[rIdx], model);
       return;
     }
 
-    // Score edits
     if (el.matches("[data-score]")) {
       const gIdx = Number(el.getAttribute("data-g"));
       const pIdx = Number(el.getAttribute("data-p"));
@@ -296,21 +334,24 @@ export function bindPairingsUI(model, { onChange } = {}) {
       emit(model);
 
       updateRoundComputed(roundCard, holes, par);
+      updateStatsRibbon(roundsContainer, rounds[rIdx], model);
     }
   });
 
-  // initial compute pass
-  roundsContainer.querySelectorAll("[data-round-card]").forEach(card => {
-    const rIdx = Number(card.getAttribute("data-round-card"));
+  // Initial compute for selected round (if present)
+  const selectedCard = roundsContainer.querySelector("[data-round-card]");
+  if (selectedCard) {
+    const rIdx = Number(selectedCard.getAttribute("data-round-card"));
     const r = (Array.isArray(model?.rounds) ? model.rounds : [])[rIdx];
     const holes = Number(r?.holes) || Number(model?.defaultHoles) || 18;
     const par = normalizePar(r?.par, holes);
-    updateRoundComputed(card, holes, par);
-  });
+    updateRoundComputed(selectedCard, holes, par);
+    updateStatsRibbon(roundsContainer, r, model);
+  }
 }
 
 /* ---------------------------
-   Rendering
+   UI render bits
 ---------------------------- */
 
 function renderPlayersGate() {
@@ -330,20 +371,56 @@ function renderEmptyRounds() {
   `;
 }
 
-function renderRoundCard(round, idx, model) {
-  const holes = Number(round?.holes) || Number(model?.defaultHoles) || 18;
-  const title = round?.title ?? `Round ${idx + 1}`;
-  const course = round?.course ?? "";
+function renderRoundPickerAndSelected(rounds, selectedIdx, selectedRound, model) {
+  if (!rounds.length) return renderEmptyRounds();
 
+  const safeIdx = Math.min(Math.max(selectedIdx, 0), rounds.length - 1);
+  const r = selectedRound ?? rounds[safeIdx];
+  const holes = Number(r?.holes ?? model?.defaultHoles ?? 18) || 18;
+  const par = normalizePar(r?.par, holes);
   const players = Array.isArray(model?.players) ? model.players : [];
   const ppg = Number(model?.playersPerGroup) || 4;
-
-  const par = normalizePar(round?.par, holes);
-  const groups = Array.isArray(round?.groups) && round.groups.length
-    ? round.groups
-    : autoGroups(players, ppg, holes);
+  const groups = Array.isArray(r?.groups) && r.groups.length ? r.groups : autoGroups(players, ppg, holes);
 
   const showBack = holes === 18;
+
+  const roundLabel = (rr, i) => {
+    const t = String(rr?.title ?? `Round ${i + 1}`).trim();
+    const c = String(rr?.course ?? "").trim();
+    return c ? `${t} — ${c}` : t;
+  };
+
+  return `
+    <div class="pairings-sticky">
+      <div class="pairings-toolbar card">
+        <div class="toolbar-left">
+          <label class="field" style="margin:0; min-width:280px;">
+            <span class="field-label">Round</span>
+            <select id="pairingsRoundSelect" class="input">
+              ${rounds.map((rr, i) => `<option value="${i}" ${i===safeIdx?"selected":""}>${escapeHtml(roundLabel(rr, i))}</option>`).join("")}
+            </select>
+          </label>
+
+          <div id="pairingsStats" class="stats-ribbon" aria-live="polite">
+            <!-- filled in by JS -->
+          </div>
+        </div>
+
+        <div class="toolbar-right">
+          <button class="btn" type="button" data-print-round="${safeIdx}">Print scorecard</button>
+          <button class="btn" type="button" data-autogroup-round="${safeIdx}">Auto-group</button>
+          <button class="btn" type="button" data-remove-round="${safeIdx}">Remove</button>
+        </div>
+      </div>
+    </div>
+
+    ${renderSelectedRoundCard(r, safeIdx, holes, par, groups, showBack)}
+  `;
+}
+
+function renderSelectedRoundCard(round, idx, holes, par, groups, showBack) {
+  const title = round?.title ?? `Round ${idx + 1}`;
+  const course = round?.course ?? "";
 
   return `
     <div class="round-card card" data-round-card="${idx}">
@@ -359,12 +436,6 @@ function renderRoundCard(round, idx, model) {
               <input class="input" data-round-course type="text" value="${escapeHtml(course)}" placeholder="e.g., Forest Dunes" />
             </label>
           </div>
-        </div>
-
-        <div class="panel-actions" style="align-items:flex-end">
-          <button class="btn" type="button" data-print-round="${idx}">Print scorecard</button>
-          <button class="btn" type="button" data-autogroup-round="${idx}">Auto-group</button>
-          <button class="btn" type="button" data-remove-round="${idx}">Remove</button>
         </div>
       </div>
 
@@ -389,10 +460,6 @@ function renderGroupScorecards(group, gIdx, holes, par, showBack) {
 
       ${renderNineTable("Front 9", gIdx, 0, 9, normalizedPlayers, par, holes)}
       ${showBack ? renderNineTable("Back 9", gIdx, 9, 18, normalizedPlayers, par, holes) : ""}
-
-      <div class="scorecard-summary" style="margin-top:10px;">
-        <div class="muted">Totals update automatically as you type.</div>
-      </div>
 
       <div class="scorecard-totals"></div>
     </div>
@@ -463,6 +530,76 @@ function renderNineTable(label, gIdx, start, end, players, par, holesTotal) {
 }
 
 /* ---------------------------
+   Stats ribbon (computed on the selected round)
+---------------------------- */
+
+function updateStatsRibbon(containerEl, round, model) {
+  const host = containerEl.querySelector("#pairingsStats");
+  if (!host || !round) return;
+
+  const holes = Number(round?.holes ?? model?.defaultHoles ?? 18) || 18;
+  const par = normalizePar(round?.par, holes);
+  const parFront = sumRange(par, 0, Math.min(9, holes));
+  const parBack = holes === 18 ? sumRange(par, 9, 18) : 0;
+  const parTotal = parFront + parBack;
+
+  const players = Array.isArray(model?.players) ? model.players : [];
+  const groups = Array.isArray(round?.groups) ? round.groups : [];
+  const groupCount = groups.length;
+
+  const completion = computeCompletion(round, holes);
+  const status = completion.done ? "Final" : (completion.started ? "In progress" : "Not started");
+
+  host.innerHTML = `
+    <div class="stat">
+      <div class="k">${players.length}</div>
+      <div class="l">Players</div>
+    </div>
+    <div class="stat">
+      <div class="k">${groupCount}</div>
+      <div class="l">Groups</div>
+    </div>
+    <div class="stat">
+      <div class="k">${holes}</div>
+      <div class="l">Holes</div>
+    </div>
+    <div class="stat">
+      <div class="k">${parTotal || "—"}</div>
+      <div class="l">Par</div>
+    </div>
+    <div class="stat">
+      <div class="k">${status}</div>
+      <div class="l">${completion.pct}% filled</div>
+    </div>
+  `;
+}
+
+function computeCompletion(round, holes) {
+  const groups = Array.isArray(round?.groups) ? round.groups : [];
+  let filled = 0;
+  let total = 0;
+  let any = false;
+
+  groups.forEach(g => {
+    const pls = Array.isArray(g?.players) ? g.players : [];
+    pls.forEach(p => {
+      const scores = normalizeScores(p?.scores, holes);
+      scores.forEach(v => {
+        total += 1;
+        if (String(v ?? "").trim() !== "") {
+          filled += 1;
+          any = true;
+        }
+      });
+    });
+  });
+
+  const pct = total ? Math.round((filled / total) * 100) : 0;
+  const done = total > 0 && filled === total;
+  return { pct, done, started: any };
+}
+
+/* ---------------------------
    Model helpers
 ---------------------------- */
 
@@ -508,7 +645,7 @@ function normalizePar(par, holes) {
 }
 
 /* ---------------------------
-   Computations + DOM updates
+   Totals + Vs Par rendering updates
 ---------------------------- */
 
 function updateRoundComputed(roundCardEl, holes, par) {
@@ -518,14 +655,12 @@ function updateRoundComputed(roundCardEl, holes, par) {
   const parBack = holes === 18 ? sumRange(par, 9, 18) : 0;
   const parTotal = parFront + parBack;
 
-  // Update par subtotals
   const parFrontEl = roundCardEl.querySelector('[data-par-subtotal="Front 9"]');
   if (parFrontEl) parFrontEl.textContent = parFront ? String(parFront) : "—";
   const parBackEl = roundCardEl.querySelector('[data-par-subtotal="Back 9"]');
   if (parBackEl) parBackEl.textContent = parBack ? String(parBack) : "—";
 
-  // Gather scores by (g,p)
-  const byGP = new Map(); // key g|p -> scores[]
+  const byGP = new Map();
   roundCardEl.querySelectorAll("input.score-input").forEach(inp => {
     const g = Number(inp.getAttribute("data-g"));
     const p = Number(inp.getAttribute("data-p"));
@@ -537,7 +672,6 @@ function updateRoundComputed(roundCardEl, holes, par) {
     byGP.get(key)[h] = toIntOrBlank(inp.value);
   });
 
-  // Per-table subtotals (Front/Back columns)
   roundCardEl.querySelectorAll("[data-subtotal]").forEach(span => {
     const label = span.getAttribute("data-subtotal") || "";
     const g = Number(span.getAttribute("data-g"));
@@ -558,7 +692,6 @@ function updateRoundComputed(roundCardEl, holes, par) {
     span.textContent = String(val);
   });
 
-  // Build totals grid per group card
   const groupCards = Array.from(roundCardEl.querySelectorAll(".card"))
     .filter(c => c.querySelector(".scorecard-totals"));
 
@@ -566,27 +699,16 @@ function updateRoundComputed(roundCardEl, holes, par) {
     const totalsHost = groupCard.querySelector(".scorecard-totals");
     if (!totalsHost) return;
 
-    // Determine players from Front 9 table rows
-    const frontRows = Array.from(groupCard.querySelectorAll('.table-block .table-title'))
-      .filter(t => (t.textContent || "").trim().startsWith("Front"))
-      .map(t => t.closest(".table-block"))
-      .filter(Boolean)
-      .flatMap(block => Array.from(block.querySelectorAll('tbody tr[data-player-row="1"]')));
+    const frontBlock = Array.from(groupCard.querySelectorAll(".table-block"))
+      .find(b => (b.querySelector(".table-title")?.textContent || "").trim().startsWith("Front"));
 
-    // unique players by data-player
-    const seen = new Set();
-    const playersList = frontRows
+    const rows = frontBlock ? Array.from(frontBlock.querySelectorAll('tbody tr[data-player-row="1"]')) : [];
+    const playersList = rows
       .map(r => ({
         pIdx: Number(r.getAttribute("data-player")),
         name: (r.querySelector("td.player")?.textContent ?? "").trim(),
       }))
-      .filter(x => Number.isFinite(x.pIdx))
-      .filter(x => {
-        const key = `${gIdx}|${x.pIdx}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+      .filter(x => Number.isFinite(x.pIdx));
 
     if (!playersList.length) {
       totalsHost.innerHTML = "";
@@ -598,10 +720,7 @@ function updateRoundComputed(roundCardEl, holes, par) {
       const hasAnyScore = scores.some(v => String(v ?? "").trim() !== "");
 
       const front = hasAnyScore ? sumRange(scores, 0, Math.min(9, holes)) : null;
-      const back = (holes === 18)
-        ? (hasAnyScore ? sumRange(scores, 9, 18) : null)
-        : null;
-
+      const back = (holes === 18) ? (hasAnyScore ? sumRange(scores, 9, 18) : null) : null;
       const total = hasAnyScore ? (Number(front || 0) + Number(back || 0)) : null;
 
       const vs = (hasAnyScore && parTotal > 0) ? (total - parTotal) : null;
@@ -671,8 +790,6 @@ function vsClass(v) {
 ---------------------------- */
 
 function printRound(roundIdx) {
-  // print only the selected round; CSS can hide others if you want
-  // We'll add a minimal selector approach:
   document.body.setAttribute("data-print-round", String(roundIdx));
   window.setTimeout(() => {
     window.print();
@@ -681,7 +798,7 @@ function printRound(roundIdx) {
 }
 
 /* ---------------------------
-   Helpers
+   Misc helpers
 ---------------------------- */
 
 function clampPar(v) {
