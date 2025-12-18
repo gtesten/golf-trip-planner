@@ -755,3 +755,93 @@ body[data-print-round="3"] .round-card[data-round-card="3"]{ display:block; }
 }
 
 /* If you have a global rule like .round-card{overflow:hidden} this overrides it */
+/* ===========================
+   SCORECARD POLISH (DARK UI + CLEAN CARD)
+   =========================== */
+
+/* Give each group card a cohesive surface */
+#pairingsRoot .card{
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(148,163,184,.18);
+}
+
+/* Put score tables on a unified light surface */
+#pairingsRoot .table-scroll{
+  background: rgba(255,255,255,.98);
+  border: 1px solid rgba(148,163,184,.22);
+  border-radius: 16px;
+  overflow: hidden; /* rounds the table corners */
+}
+
+/* Table text + spacing */
+#pairingsRoot .score-table th,
+#pairingsRoot .score-table td,
+#pairingsRoot .totals-table th,
+#pairingsRoot .totals-table td{
+  font-size: 13px;
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(148,163,184,.18);
+}
+
+/* Stronger header */
+#pairingsRoot .score-table thead tr:first-child th{
+  background: rgba(15,23,42,.06);
+  color: rgba(15,23,42,.95);
+  font-weight: 900;
+}
+
+/* PAR row: subtle green band */
+#pairingsRoot .score-table thead .par-row th{
+  background: rgba(5,150,105,.10);
+  border-bottom: 1px solid rgba(5,150,105,.18);
+  color: rgba(15,23,42,.92);
+  font-weight: 900;
+}
+
+/* Stripe rows softly */
+#pairingsRoot .score-table tbody tr:nth-child(odd) td{ background: rgba(255,255,255,.98); }
+#pairingsRoot .score-table tbody tr:nth-child(even) td{ background: rgba(15,23,42,.03); }
+
+/* Player column: make readable but not "dark blocks" */
+#pairingsRoot .score-table th.player,
+#pairingsRoot .score-table td.player{
+  background: rgba(15,23,42,.05);
+  color: rgba(15,23,42,.95);
+  font-weight: 900;
+  width: 150px;
+}
+
+/* Inputs look tighter + aligned */
+#pairingsRoot .score-input,
+#pairingsRoot .par-input{
+  width: 36px;
+  height: 32px;
+  border-radius: 10px;
+  font-weight: 900;
+}
+
+/* The "Front 9" / "Back 9" labels should pop on dark UI */
+#pairingsRoot .table-title{
+  color: rgba(255,255,255,.92);
+  font-weight: 900;
+  margin: 10px 4px 8px;
+}
+
+/* Totals table: match style */
+#pairingsRoot .totals-table{
+  background: rgba(255,255,255,.98);
+  color: rgba(15,23,42,.95);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* Vs Par colors */
+#pairingsRoot .vs-over{ color: #b91c1c; font-weight: 900; }
+#pairingsRoot .vs-even{ color: #0f172a; font-weight: 900; }
+#pairingsRoot .vs-under{ color: #047857; font-weight: 900; }
+
+/* When a player hasn't started, deemphasize */
+#pairingsRoot .not-started{
+  color: rgba(15,23,42,.35) !important;
+  font-weight: 800;
+}

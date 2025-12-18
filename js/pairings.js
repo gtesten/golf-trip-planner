@@ -1,10 +1,10 @@
-// js/pairings.js
-// Pairings & Scores (v2):
-// - No rounds until Players are applied
-// - Per-hole PAR inputs per round (stored on round.par[])
-// - Front/Back/Total breakdown
-// - Score vs Par (+n / E / -n)
-// - Printable scorecard (print-to-PDF)
+// /js/pairings.js
+// Pairings & Scores v3
+// - Players gate: no rounds until Apply Players
+// - Per-hole PAR inputs per round (round.par[])
+// - Front 9 / Back 9 tables + Totals (Front/Back/Total/Vs Par)
+// - Vs Par formatting (+2 / E / -1) with correct handling when scores are blank
+// - Print scorecard per round (print-to-PDF)
 
 export function renderPairingsFromModel(model) {
   renderPairings(model);
@@ -18,9 +18,6 @@ export function renderPairings(model) {
   const rounds = Array.isArray(model?.rounds) ? model.rounds : [];
 
   const playersApplied = players.length > 0;
-  const roundsUi = playersApplied
-    ? (rounds.length ? rounds.map((r, idx) => renderRoundCard(r, idx, model)).join("") : renderEmptyRounds())
-    : renderPlayersGate();
 
   root.innerHTML = `
     <section class="panel">
@@ -40,7 +37,7 @@ export function renderPairings(model) {
               placeholder="Glenn&#10;Cristina&#10;Grant&#10;Paul">${escapeHtml(players.join("\n"))}</textarea>
           </div>
 
-          <div class="row" style="margin-top:10px; display:flex; gap:10px; align-items:center;">
+          <div style="display:flex; gap:10px; align-items:center; margin-top:10px;">
             <button id="applyPlayersBtn" class="btn btn-primary" type="button">Apply Players</button>
             <div class="muted">Rounds unlock after players are applied.</div>
           </div>
@@ -67,13 +64,17 @@ export function renderPairings(model) {
           </div>
 
           <div class="muted" style="margin-top:10px">
-            Scorecards are shown as <b>Front 9</b> + <b>Back 9</b> so the inputs fit the page.
+            Scorecards render as <b>Front 9</b> + <b>Back 9</b> so inputs fit cleanly.
           </div>
         </div>
       </div>
 
       <div id="roundsContainer" class="stack" style="margin-top:14px">
-        ${roundsUi}
+        ${
+          playersApplied
+            ? (rounds.length ? rounds.map((r, idx) => renderRoundCard(r, idx, model)).join("") : renderEmptyRounds())
+            : renderPlayersGate()
+        }
       </div>
     </section>
   `;
@@ -91,7 +92,9 @@ export function bindPairingsUI(model, { onChange } = {}) {
   const playersPerGroupEl = root.querySelector("#playersPerGroup");
   const roundsContainer = root.querySelector("#roundsContainer");
 
-  if (!playersInput || !applyPlayersBtn || !addRoundBtn || !saveBtn || !defaultHolesEl || !playersPerGroupEl || !roundsContainer) return;
+  if (!playersInput || !applyPlayersBtn || !addRoundBtn || !saveBtn || !defaultHolesEl || !playersPerGroupEl || !roundsContainer) {
+    return;
+  }
 
   const emit = (next) => {
     onChange?.(next);
@@ -104,7 +107,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
       .map(s => s.trim())
       .filter(Boolean);
 
-  // Apply players (gate)
+  // Apply players (unlocks rounds)
   applyPlayersBtn.addEventListener("click", () => {
     const players = parsePlayersFromTextarea();
     const next = {
@@ -114,7 +117,6 @@ export function bindPairingsUI(model, { onChange } = {}) {
       playersPerGroup: Number(playersPerGroupEl.value) || 4,
       rounds: Array.isArray(model?.rounds) ? model.rounds : [],
     };
-
     model = next;
     emit(next);
 
@@ -127,6 +129,8 @@ export function bindPairingsUI(model, { onChange } = {}) {
     const next = { ...model, defaultHoles: Number(defaultHolesEl.value) || 18 };
     model = next;
     emit(next);
+
+    // Re-render so future rounds use new default; existing rounds keep their holes
     renderPairings(model);
     bindPairingsUI(model, { onChange });
   });
@@ -137,7 +141,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
     emit(next);
   });
 
-  // Add Round
+  // Add round
   addRoundBtn.addEventListener("click", () => {
     const players = Array.isArray(model?.players) ? model.players : [];
     if (!players.length) return;
@@ -158,7 +162,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
     bindPairingsUI(model, { onChange });
   });
 
-  // Save button (cosmetic)
+  // Save (cosmetic)
   saveBtn.addEventListener("click", () => {
     emit(model);
     saveBtn.textContent = "Saved ✓";
@@ -216,11 +220,10 @@ export function bindPairingsUI(model, { onChange } = {}) {
       const idx = Number(printBtn.getAttribute("data-print-round"));
       if (!Number.isFinite(idx)) return;
       printRound(idx);
-      return;
     }
   });
 
-  // Input handlers inside rounds
+  // Input handlers inside rounds (title/course/par/score)
   roundsContainer.addEventListener("input", (e) => {
     const el = e.target;
     const roundCard = el.closest("[data-round-card]");
@@ -233,7 +236,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
     const r = rounds[rIdx];
     if (!r) return;
 
-    // Round meta
+    // meta
     if (el.matches("[data-round-title]")) {
       rounds[rIdx] = { ...r, title: el.value };
       model = { ...model, rounds };
@@ -249,18 +252,18 @@ export function bindPairingsUI(model, { onChange } = {}) {
 
     const holes = Number(r.holes) || Number(model?.defaultHoles) || 18;
 
-    // Par edits
+    // PAR edits
     if (el.matches("[data-par]")) {
       const hIdx = Number(el.getAttribute("data-h"));
       if (!Number.isFinite(hIdx)) return;
 
       const par = normalizePar(r.par, holes);
       par[hIdx] = clampPar(el.value);
+
       rounds[rIdx] = { ...r, holes, par };
       model = { ...model, rounds };
       emit(model);
 
-      // update computed fields in-place
       updateRoundComputed(roundCard, holes, par);
       return;
     }
@@ -286,7 +289,6 @@ export function bindPairingsUI(model, { onChange } = {}) {
       pls[pIdx] = { ...pl, scores };
       groups[gIdx] = { ...group, players: pls };
 
-      // ensure par normalized too
       const par = normalizePar(r.par, holes);
 
       rounds[rIdx] = { ...r, holes, par, groups };
@@ -294,7 +296,6 @@ export function bindPairingsUI(model, { onChange } = {}) {
       emit(model);
 
       updateRoundComputed(roundCard, holes, par);
-      return;
     }
   });
 
@@ -315,7 +316,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
 function renderPlayersGate() {
   return `
     <div class="card">
-      <div style="font-weight:800; margin-bottom:6px">Players required</div>
+      <div style="font-weight:900; margin-bottom:6px">Players required</div>
       <div class="muted">Enter your players and click <b>Apply Players</b> to unlock rounds and scorecards.</div>
     </div>
   `;
@@ -333,6 +334,7 @@ function renderRoundCard(round, idx, model) {
   const holes = Number(round?.holes) || Number(model?.defaultHoles) || 18;
   const title = round?.title ?? `Round ${idx + 1}`;
   const course = round?.course ?? "";
+
   const players = Array.isArray(model?.players) ? model.players : [];
   const ppg = Number(model?.playersPerGroup) || 4;
 
@@ -373,8 +375,6 @@ function renderRoundCard(round, idx, model) {
 
 function renderGroupScorecards(group, gIdx, holes, par, showBack) {
   const players = Array.isArray(group?.players) ? group.players : [];
-
-  // Ensure each player has scores array length holes
   const normalizedPlayers = players.map(p => ({
     name: p?.name ?? "",
     scores: normalizeScores(p?.scores, holes),
@@ -382,27 +382,30 @@ function renderGroupScorecards(group, gIdx, holes, par, showBack) {
 
   return `
     <div class="card" style="margin-top:10px">
-      <div class="scorecard-header">
+      <div class="scorecard-header" style="display:flex; justify-content:space-between; gap:10px; align-items:baseline; margin-bottom:8px;">
         <div class="muted"><b>Group ${gIdx + 1}</b></div>
         <div class="muted">Front / Back / Total + vs Par</div>
       </div>
 
-      ${renderNineTable("Front 9", 0, 9, normalizedPlayers, par)}
-      ${showBack ? renderNineTable("Back 9", 9, 18, normalizedPlayers, par) : ""}
+      ${renderNineTable("Front 9", gIdx, 0, 9, normalizedPlayers, par, holes)}
+      ${showBack ? renderNineTable("Back 9", gIdx, 9, 18, normalizedPlayers, par, holes) : ""}
 
-      <div class="scorecard-summary">
+      <div class="scorecard-summary" style="margin-top:10px;">
         <div class="muted">Totals update automatically as you type.</div>
       </div>
+
+      <div class="scorecard-totals"></div>
     </div>
   `;
 }
 
-function renderNineTable(label, start, end, players, par) {
-  const holes = Array.from({ length: end - start }, (_, i) => start + i);
+function renderNineTable(label, gIdx, start, end, players, par, holesTotal) {
+  const endBound = Math.min(end, holesTotal);
+  const holeIdxs = Array.from({ length: Math.max(0, endBound - start) }, (_, i) => start + i);
 
-  const headHoles = holes.map(h => `<th class="hole">${h + 1}</th>`).join("");
+  const headHoles = holeIdxs.map(h => `<th class="hole">${h + 1}</th>`).join("");
 
-  const parInputs = holes.map(h => {
+  const parInputs = holeIdxs.map(h => {
     const v = par[h] ?? "";
     return `
       <td class="hole">
@@ -413,12 +416,12 @@ function renderNineTable(label, start, end, players, par) {
   }).join("");
 
   const rows = players.map((p, pIdx) => {
-    const scoreTds = holes.map(h => {
+    const scoreTds = holeIdxs.map(h => {
       const v = p.scores[h] ?? "";
       return `
         <td class="hole">
           <input class="score-input" inputmode="numeric" pattern="[0-9]*"
-            data-score="1" data-g="__G__" data-p="${pIdx}" data-h="${h}"
+            data-score="1" data-g="${gIdx}" data-p="${pIdx}" data-h="${h}"
             value="${escapeHtml(v)}" />
         </td>
       `;
@@ -428,13 +431,12 @@ function renderNineTable(label, start, end, players, par) {
       <tr data-player-row="1" data-player="${pIdx}">
         <td class="player">${escapeHtml(p.name)}</td>
         ${scoreTds}
-        <td class="subtotal"><span data-subtotal="${label}">0</span></td>
+        <td class="subtotal"><span data-subtotal="${label}" data-g="${gIdx}" data-p="${pIdx}">—</span></td>
       </tr>
     `;
   }).join("");
 
-  // we patch data-g later in postprocess (per group) by replace
-  const html = `
+  return `
     <div class="table-block">
       <div class="table-title">${label}</div>
       <div class="table-scroll">
@@ -443,12 +445,12 @@ function renderNineTable(label, start, end, players, par) {
             <tr>
               <th class="player">Player</th>
               ${headHoles}
-              <th class="subtotal">${label.includes("Front") ? "Front" : "Back"}</th>
+              <th class="subtotal">${label.startsWith("Front") ? "Front" : "Back"}</th>
             </tr>
             <tr class="par-row">
               <th class="player">PAR</th>
               ${parInputs}
-              <th class="subtotal"><span data-par-subtotal="${label}">0</span></th>
+              <th class="subtotal"><span data-par-subtotal="${label}">—</span></th>
             </tr>
           </thead>
           <tbody>
@@ -458,8 +460,6 @@ function renderNineTable(label, start, end, players, par) {
       </div>
     </div>
   `;
-
-  return html;
 }
 
 /* ---------------------------
@@ -514,33 +514,19 @@ function normalizePar(par, holes) {
 function updateRoundComputed(roundCardEl, holes, par) {
   if (!roundCardEl) return;
 
-  // Patch group indexes into score inputs (because renderNineTable used "__G__")
-  // We do it once per update pass.
-  const groupCards = roundCardEl.querySelectorAll(".card");
-  // Only patch inside the group cards that contain score tables
-  // We'll locate tables and walk back up to find group index by order
-  const groupTables = roundCardEl.querySelectorAll(".score-table");
-  // Each group has 1 or 2 tables; we patch via nearest group card index
-  const groupEls = Array.from(roundCardEl.querySelectorAll(".scorecard-header")).map(h => h.closest(".card"));
-  groupEls.forEach((gEl, gIdx) => {
-    if (!gEl) return;
-    gEl.querySelectorAll('input.score-input[data-g="__G__"]').forEach(inp => {
-      inp.setAttribute("data-g", String(gIdx));
-    });
-  });
-
-  // Par subtotals + total
   const parFront = sumRange(par, 0, Math.min(9, holes));
   const parBack = holes === 18 ? sumRange(par, 9, 18) : 0;
-  roundCardEl.querySelectorAll('[data-par-subtotal="Front 9"]').forEach(el => (el.textContent = String(parFront)));
-  roundCardEl.querySelectorAll('[data-par-subtotal="Back 9"]').forEach(el => (el.textContent = String(parBack)));
+  const parTotal = parFront + parBack;
 
-  // For each player row across both tables: compute front/back and update
-  // We'll compute by scanning inputs within roundCardEl for each (g,p) combo
-  const scoreInputs = roundCardEl.querySelectorAll("input.score-input");
-  const byGP = new Map(); // key `${g}|${p}` -> scores array
+  // Update par subtotals
+  const parFrontEl = roundCardEl.querySelector('[data-par-subtotal="Front 9"]');
+  if (parFrontEl) parFrontEl.textContent = parFront ? String(parFront) : "—";
+  const parBackEl = roundCardEl.querySelector('[data-par-subtotal="Back 9"]');
+  if (parBackEl) parBackEl.textContent = parBack ? String(parBack) : "—";
 
-  scoreInputs.forEach(inp => {
+  // Gather scores by (g,p)
+  const byGP = new Map(); // key g|p -> scores[]
+  roundCardEl.querySelectorAll("input.score-input").forEach(inp => {
     const g = Number(inp.getAttribute("data-g"));
     const p = Number(inp.getAttribute("data-p"));
     const h = Number(inp.getAttribute("data-h"));
@@ -548,101 +534,115 @@ function updateRoundComputed(roundCardEl, holes, par) {
 
     const key = `${g}|${p}`;
     if (!byGP.has(key)) byGP.set(key, new Array(holes).fill(""));
-    const arr = byGP.get(key);
-    arr[h] = toIntOrBlank(inp.value);
+    byGP.get(key)[h] = toIntOrBlank(inp.value);
   });
 
-  // Update subtotals displayed in each table row
-  roundCardEl.querySelectorAll('tr[data-player-row="1"]').forEach(row => {
-    const p = Number(row.getAttribute("data-player"));
-    if (!Number.isFinite(p)) return;
+  // Per-table subtotals (Front/Back columns)
+  roundCardEl.querySelectorAll("[data-subtotal]").forEach(span => {
+    const label = span.getAttribute("data-subtotal") || "";
+    const g = Number(span.getAttribute("data-g"));
+    const p = Number(span.getAttribute("data-p"));
+    if (![g, p].every(Number.isFinite)) return;
 
-    // find group by looking at any score input in this row
-    const any = row.querySelector("input.score-input");
-    const g = any ? Number(any.getAttribute("data-g")) : NaN;
-    if (!Number.isFinite(g)) return;
+    const scores = byGP.get(`${g}|${p}`) ?? new Array(holes).fill("");
+    const hasAny = scores.some(v => String(v ?? "").trim() !== "");
+    if (!hasAny) {
+      span.textContent = "—";
+      return;
+    }
 
-    const key = `${g}|${p}`;
-    const scores = byGP.get(key) ?? new Array(holes).fill("");
+    const val = label.startsWith("Front")
+      ? sumRange(scores, 0, Math.min(9, holes))
+      : sumRange(scores, 9, 18);
 
-    const front = sumRange(scores, 0, Math.min(9, holes));
-    const back = holes === 18 ? sumRange(scores, 9, 18) : 0;
-
-    const label = row.closest(".table-block")?.querySelector(".table-title")?.textContent?.trim() ?? "";
-    const subtotalSpan = row.querySelector("[data-subtotal]");
-    if (subtotalSpan) subtotalSpan.textContent = String(label.startsWith("Front") ? front : back);
+    span.textContent = String(val);
   });
 
-  // Add an overall totals strip per group card (Front / Back / Total / vs Par)
-  groupEls.forEach((gEl, gIdx) => {
-    if (!gEl) return;
+  // Build totals grid per group card
+  const groupCards = Array.from(roundCardEl.querySelectorAll(".card"))
+    .filter(c => c.querySelector(".scorecard-totals"));
 
-    // build summary table
-    const players = Array.from(gEl.querySelectorAll('tr[data-player-row="1"]'))
-      .filter((row, i, arr) => row.closest(".table-block")?.querySelector(".table-title")?.textContent?.trim().startsWith("Front"))
-      .map(row => ({
-        name: row.querySelector("td.player")?.textContent ?? "",
-        pIdx: Number(row.getAttribute("data-player")),
+  groupCards.forEach((groupCard, gIdx) => {
+    const totalsHost = groupCard.querySelector(".scorecard-totals");
+    if (!totalsHost) return;
+
+    // Determine players from Front 9 table rows
+    const frontRows = Array.from(groupCard.querySelectorAll('.table-block .table-title'))
+      .filter(t => (t.textContent || "").trim().startsWith("Front"))
+      .map(t => t.closest(".table-block"))
+      .filter(Boolean)
+      .flatMap(block => Array.from(block.querySelectorAll('tbody tr[data-player-row="1"]')));
+
+    // unique players by data-player
+    const seen = new Set();
+    const playersList = frontRows
+      .map(r => ({
+        pIdx: Number(r.getAttribute("data-player")),
+        name: (r.querySelector("td.player")?.textContent ?? "").trim(),
       }))
-      .filter(x => Number.isFinite(x.pIdx));
+      .filter(x => Number.isFinite(x.pIdx))
+      .filter(x => {
+        const key = `${gIdx}|${x.pIdx}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
 
-    // remove old summary if exists
-    const old = gEl.querySelector(".scorecard-totals");
-    if (old) old.remove();
+    if (!playersList.length) {
+      totalsHost.innerHTML = "";
+      return;
+    }
 
-    if (!players.length) return;
+    const rowsHtml = playersList.map(p => {
+      const scores = byGP.get(`${gIdx}|${p.pIdx}`) ?? new Array(holes).fill("");
+      const hasAnyScore = scores.some(v => String(v ?? "").trim() !== "");
 
-    const rows = players.map(p => {
-      const key = `${gIdx}|${p.pIdx}`;
-      const scores = byGP.get(key) ?? new Array(holes).fill("");
+      const front = hasAnyScore ? sumRange(scores, 0, Math.min(9, holes)) : null;
+      const back = (holes === 18)
+        ? (hasAnyScore ? sumRange(scores, 9, 18) : null)
+        : null;
 
-      const front = sumRange(scores, 0, Math.min(9, holes));
-      const back = holes === 18 ? sumRange(scores, 9, 18) : 0;
-      const total = front + back;
+      const total = hasAnyScore ? (Number(front || 0) + Number(back || 0)) : null;
 
-      const vs = total - (parFront + parBack);
-      const vsTxt = formatVsPar(vs);
+      const vs = (hasAnyScore && parTotal > 0) ? (total - parTotal) : null;
+      const vsTxt = vs == null ? "—" : formatVsPar(vs);
 
       return `
         <tr>
           <td class="player">${escapeHtml(p.name)}</td>
-          <td class="num">${front}</td>
-          <td class="num">${holes === 18 ? back : "-"}</td>
-          <td class="num"><b>${total}</b></td>
-          <td class="num ${vsClass(vs)}">${vsTxt}</td>
+          <td class="num ${front==null ? "not-started":""}">${front==null ? "—" : front}</td>
+          <td class="num ${back==null ? "not-started":""}">${holes === 18 ? (back==null ? "—" : back) : "-"}</td>
+          <td class="num ${total==null ? "not-started":""}"><b>${total==null ? "—" : total}</b></td>
+          <td class="num ${vs==null ? "not-started": vsClass(vs)}">${vsTxt}</td>
         </tr>
       `;
     }).join("");
 
-    const totalsHtml = `
-      <div class="scorecard-totals">
-        <div class="table-scroll">
-          <table class="totals-table">
-            <thead>
-              <tr>
-                <th class="player">Totals</th>
-                <th class="num">Front</th>
-                <th class="num">Back</th>
-                <th class="num">Total</th>
-                <th class="num">Vs Par</th>
-              </tr>
-              <tr class="par-row">
-                <th class="player">Par</th>
-                <th class="num">${parFront}</th>
-                <th class="num">${holes === 18 ? parBack : "-"}</th>
-                <th class="num">${parFront + parBack}</th>
-                <th class="num">—</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
-        </div>
+    totalsHost.innerHTML = `
+      <div class="table-scroll" style="margin-top:10px;">
+        <table class="totals-table">
+          <thead>
+            <tr>
+              <th class="player">Totals</th>
+              <th class="num">Front</th>
+              <th class="num">Back</th>
+              <th class="num">Total</th>
+              <th class="num">Vs Par</th>
+            </tr>
+            <tr class="par-row">
+              <th class="player">Par</th>
+              <th class="num">${parFront ? parFront : "—"}</th>
+              <th class="num">${holes === 18 ? (parBack ? parBack : "—") : "-"}</th>
+              <th class="num">${parTotal ? parTotal : "—"}</th>
+              <th class="num">—</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
       </div>
     `;
-
-    gEl.insertAdjacentHTML("beforeend", totalsHtml);
   });
 }
 
@@ -667,11 +667,12 @@ function vsClass(v) {
 }
 
 /* ---------------------------
-   Print (print-to-PDF)
+   Print
 ---------------------------- */
 
 function printRound(roundIdx) {
-  // Hide everything except this round while printing
+  // print only the selected round; CSS can hide others if you want
+  // We'll add a minimal selector approach:
   document.body.setAttribute("data-print-round", String(roundIdx));
   window.setTimeout(() => {
     window.print();
@@ -680,7 +681,7 @@ function printRound(roundIdx) {
 }
 
 /* ---------------------------
-   Small helpers
+   Helpers
 ---------------------------- */
 
 function clampPar(v) {
