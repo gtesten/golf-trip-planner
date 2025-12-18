@@ -613,3 +613,76 @@ body[data-print-round="1"] .round-card[data-round-card="1"]{ display:block; }
 body[data-print-round="2"] .round-card[data-round-card="2"]{ display:block; }
 body[data-print-round="3"] .round-card[data-round-card="3"]{ display:block; }
 /* If you might have more than 4 rounds, add more lines, or tell me and I’ll make it dynamic */
+/* ===========================
+   SCORECARD SHADING FIX
+   =========================== */
+
+/* Make the tables look consistent */
+.score-table,
+.totals-table{
+  background: rgba(255,255,255,.98);
+}
+
+/* Header row */
+.score-table thead tr:first-child th{
+  background: rgba(15,23,42,.06);
+  color: var(--text);
+  border-bottom: 1px solid rgba(148,163,184,.28);
+}
+
+/* PAR row: subtle green tint */
+.score-table thead .par-row th{
+  background: rgba(5,150,105,.10);
+  color: var(--text);
+  border-bottom: 1px solid rgba(5,150,105,.22);
+}
+
+/* Body striping across the WHOLE row */
+.score-table tbody tr:nth-child(odd) td{
+  background: rgba(255,255,255,.98);
+}
+.score-table tbody tr:nth-child(even) td{
+  background: rgba(15,23,42,.03);
+}
+
+/* Player column shading (remove the “dark blocks”) */
+.score-table th.player,
+.score-table td.player{
+  background: rgba(15,23,42,.05);   /* subtle, not dark */
+  color: var(--text);
+}
+
+/* Optional (recommended): keep Player column visible while scrolling */
+.score-table th.player,
+.score-table td.player{
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+/* Ensure sticky player cells don’t look weird on striped rows */
+.score-table tbody tr:nth-child(even) td.player{
+  background: rgba(15,23,42,.07);
+}
+.score-table tbody tr:nth-child(odd) td.player{
+  background: rgba(15,23,42,.05);
+}
+
+/* Inputs: ensure they don’t inherit weird row backgrounds */
+.score-input,
+.par-input{
+  background: #fff !important;
+}
+
+/* Subtotal column a touch stronger so it reads */
+.score-table th.subtotal,
+.score-table td.subtotal{
+  background: rgba(15,23,42,.04);
+  font-weight: 900;
+}
+
+/* Back/Front labels ("Front 9", "Back 9") if you want them to pop */
+.table-title{
+  color: rgba(255,255,255,.92);
+  font-weight: 900;
+}
