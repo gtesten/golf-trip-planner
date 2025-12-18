@@ -1,14 +1,14 @@
 // js/app.mjs
-
 import * as overview from "./overview.js";
 import * as itinerary from "./itinerary.js";
 import * as pairings from "./pairings.js";
 import * as tripDetails from "./tripDetails.js";
 import * as storage from "./storage.js";
 import * as tabs from "./tabs.js";
+import { initStore, subscribe, setModel } from "./store.js";
+import { initToast } from "./toast.js";
 
-console.log("[GolfTripPlanner] main.js loaded");
-console.log("[GolfTripPlanner] main.js loaded at", new Date().toISOString());
+console.log("[GolfTripPlanner] app boot", new Date().toISOString());
 
 function safeCall(fn, ...args) {
   try {
@@ -19,56 +19,46 @@ function safeCall(fn, ...args) {
   }
 }
 
-function loadModel() {
-  const fromStorage =
-    (typeof storage?.loadModel === "function" && safeCall(storage.loadModel)) ||
-    (typeof storage?.getModel === "function" && safeCall(storage.getModel));
+async function boot() {
+  initToast();
 
-  return (
-    fromStorage || {
-      itineraryDays: [],
-      players: [],
-      rounds: [],
-      defaultHoles: 18,
-      playersPerGroup: 4,
-    }
-  );
-}
+  const initialModel = await storage.loadModel();
 
-function saveModel(model) {
-  if (typeof storage?.saveModel === "function") return safeCall(storage.saveModel, model);
-  if (typeof storage?.setModel === "function") return safeCall(storage.setModel, model);
-}
+  initStore({
+    initialModel,
+    saveFn: storage.saveModel,
+  });
 
-function bootNormalMode() {
-  let model = loadModel();
-
-  const onChange = (next) => {
-    model = next;
-    saveModel(model);
-    // ✅ Overview is derived, so always refresh it on any update
+  // Re-render on any model change
+  subscribe((model) => {
     safeCall(overview.renderOverview, model);
+    safeCall(itinerary.renderItinerary, model);
+    safeCall(pairings.renderPairings, model);
+    safeCall(tripDetails.renderTrip, model);
+  });
+
+  // Bind once per render pass, but re-bind after renders too (simple + reliable)
+  const bindAll = (model) => {
+    safeCall(itinerary.bindItineraryUI, model, { onChange: (m) => setModel(m) });
+    safeCall(pairings.bindPairingsUI, model, { onChange: (m) => setModel(m) });
+    safeCall(tripDetails.bindTripUI, model, { onChange: (m) => setModel(m) });
+    safeCall(overview.bindOverviewUI, model, { onChange: (m) => setModel(m) });
   };
 
-  // Render first
-  safeCall(overview.renderOverview, model);
-  safeCall(itinerary.renderItinerary, model);
-  safeCall(pairings.renderPairingsFromModel, model);
-  safeCall(pairings.renderPairings, model);
-  safeCall(tripDetails.renderTrip, model);
-  safeCall(tripDetails.renderTripDetails, model);
+  // initial bind after first render
+  bindAll(initialModel);
 
-  // Bind after render
-  safeCall(overview.bindOverviewUI, model, { onChange });
-  safeCall(itinerary.bindItineraryUI, model, { onChange });
-  safeCall(pairings.bindPairingsUI, model, { onChange });
-  safeCall(tripDetails.bindTripUI, model, { onChange });
+  // Re-bind after each render tick (prevents null listener issues)
+  subscribe((model) => {
+    // small microtask to allow DOM to update
+    queueMicrotask(() => bindAll(model));
+  });
 
   safeCall(tabs.initTabs, "overview");
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", bootNormalMode);
+  document.addEventListener("DOMContentLoaded", boot);
 } else {
-  bootNormalMode();
+  boot();
 }

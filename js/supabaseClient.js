@@ -1,18 +1,7 @@
-import { loadSupabaseConfig } from "./storage.js";
+// js/supabaseClient.js
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-let _client = null;
+const SUPABASE_URL = "https://gtesten.github.io/golf-trip-planner/";
+const SUPABASE_ANON_KEY = "sb_publishable_y5qYE-uYPTtNrdM0vI5tJA_V8IA29U1";
 
-export async function getSupabaseClient() {
-  const cfg = loadSupabaseConfig();
-  if (!cfg.url || !cfg.anon) return null;
-
-  if (_client) return _client;
-
-  // ESM build from CDN (no React/Babel needed)
-  const mod = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
-  _client = mod.createClient(cfg.url, cfg.anon, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-  });
-
-  return _client;
-}
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
