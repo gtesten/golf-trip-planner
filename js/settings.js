@@ -6,7 +6,6 @@ import * as overview from "./overview.js";
 import * as itinerary from "./itinerary.js";
 import * as pairings from "./pairings.js";
 import * as tripDetails from "./tripDetails.js";
-import * as settings from "./settings.js";
 
 import { readShareModelFromUrl } from "./share.js";
 
@@ -81,7 +80,6 @@ function bootNormalMode() {
   safeCall(itinerary.renderItinerary, model);
   safeCall(pairings.renderPairings, model);
   safeCall(tripDetails.renderTrip, model); // safe to call again; your render likely binds + redraws
-  
 
   // Default tab
   safeCall(setActiveTab, "overview");
