@@ -5,51 +5,55 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Golf Trip Planner</title>
 
-  <link rel="stylesheet" href="./css/styles.css" />
-  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-</head>
-<div id="settingsRoot"></div>
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
 
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
 
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand-mark">⛳</div>
-      <div class="brand-text">
-        <div class="brand-title">Golf Trip Planner</div>
-        <div class="brand-subtitle">Plan • Pair • Score</div>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-mark">⛳</div>
+        <div class="brand-text">
+          <div class="brand-title">Golf Trip Planner</div>
+          <div class="brand-subtitle">Plan · Pair · Score</div>
+        </div>
       </div>
-    </div>
 
-    <nav class="tabs" aria-label="Primary">
-      <button class="tab active" type="button" data-tab="overview">Overview</button>
-      <button class="tab" type="button" data-tab="itinerary">Itinerary</button>
-      <button class="tab" type="button" data-tab="pairings">Pairings &amp; Scores</button>
-      <button class="tab" type="button" data-tab="trip">Trip Details</button>
-    </nav>
-  </header>
+      <nav class="tabs" role="tablist" aria-label="Golf Trip Planner Tabs">
+        <button class="tab-btn" data-tab="overview" role="tab">Overview</button>
+        <button class="tab-btn" data-tab="itinerary" role="tab">Itinerary</button>
+        <button class="tab-btn" data-tab="pairings" role="tab">Pairings &amp; Scores</button>
+        <button class="tab-btn" data-tab="trip" role="tab">Trip Details</button>
+        <button class="tab-btn" data-tab="settings" role="tab">Settings</button>
+      </nav>
+    </header>
 
-  <main class="container">
-    <!-- OVERVIEW -->
-    <section id="tab-overview" class="tab-panel" data-tab-panel="overview">
-      <div id="overviewRoot"></div>
-    </section>
+    <main class="app-main">
+      <!-- Panels: ONLY one visible at a time -->
+      <section class="tab-panel" data-panel="overview" role="tabpanel">
+        <div id="overviewRoot"></div>
+      </section>
 
-    <!-- ITINERARY -->
-    <section id="tab-itinerary" class="tab-panel" data-tab-panel="itinerary" hidden>
-      <div id="itineraryRoot"></div>
-    </section>
+      <section class="tab-panel" data-panel="itinerary" role="tabpanel" hidden>
+        <div id="itineraryRoot"></div>
+      </section>
 
-    <!-- PAIRINGS -->
-    <section id="tab-pairings" class="tab-panel" data-tab-panel="pairings" hidden>
-      <div id="pairingsRoot"></div>
-    </section>
+      <section class="tab-panel" data-panel="pairings" role="tabpanel" hidden>
+        <div id="pairingsRoot"></div>
+      </section>
 
-    <!-- TRIP DETAILS -->
-    <section id="tab-trip" class="tab-panel" data-tab-panel="trip" hidden>
-      <div id="tripRoot"></div>
-    </section>
-  </main>
+      <section class="tab-panel" data-panel="trip" role="tabpanel" hidden>
+        <div id="tripRoot"></div>
+      </section>
+
+      <section class="tab-panel" data-panel="settings" role="tabpanel" hidden>
+        <div id="settingsRoot"></div>
+      </section>
+    </main>
+  </div>
 
   <script type="module" src="./js/app.mjs"></script>
 </body>
