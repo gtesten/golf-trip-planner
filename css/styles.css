@@ -1165,3 +1165,9 @@ body[data-print-round="3"] .round-card[data-round-card="3"]{ display:block; }
 #pairingsRoot .muted{
   color: rgba(255,255,255,.75) !important;
 }
+#pairingsRoot .pairings-toolbar .toolbar-left{
+  flex-wrap: wrap;
+}
+#pairingsRoot #pairingsStats{
+  min-width: 340px;
+}

@@ -3,6 +3,7 @@ import * as overview from "./overview.js";
 import * as itinerary from "./itinerary.js";
 import * as pairings from "./pairings.js";
 import * as tripDetails from "./tripDetails.js";
+import * as settings from "./settings.js";
 import * as storage from "./storage.js";
 import * as tabs from "./tabs.js";
 import { initStore, subscribe, setModel } from "./store.js";
@@ -54,19 +55,17 @@ async function boot() {
     safeCall(pairings.bindPairingsUI, model, { onChange: (m, meta) => setModel(m, { meta: meta ?? { source: "pairings" } }) });
     safeCall(tripDetails.bindTripUI, model, { onChange: (m) => setModel(m, { meta: { source: "tripDetails" } }) });
     safeCall(overview.bindOverviewUI, model, { onChange: (m) => setModel(m, { meta: { source: "overview" } }) });
+    safeCall(settings.bindSettingsUI, model, { onChange: (m) => setModel(m, { meta: { source: "settings" } }) });
   };
 
   subscribe((model, meta = {}) => {
-    // Always keep these synced
     safeCall(overview.renderOverview, model);
     safeCall(itinerary.renderItinerary, model);
     safeCall(tripDetails.renderTrip, model);
+    safeCall(settings.renderSettings, model);
 
-    // Pairings: DO NOT rerender while typing in Pairings (prevents scroll-to-top)
     const typingInPairings = meta?.source === "pairings" && isFocusInsidePairings();
-    if (!typingInPairings) {
-      safeCall(pairings.renderPairings, model);
-    }
+    if (!typingInPairings) safeCall(pairings.renderPairings, model);
 
     queueMicrotask(() => bindAll(model));
   });

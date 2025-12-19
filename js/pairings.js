@@ -1,14 +1,16 @@
 // /js/pairings.js
-// Pairings & Scores v4
-// Adds:
-// - Round selector (renders one round at a time)
-// - Quick stats ribbon (players/groups/holes/par/status)
+// Pairings & Scores v5
+// Adds (#3):
+// - Course presets dropdown (Supabase courses table)
+// - "Load PAR into this round" + "Save preset from this round"
 // Keeps:
-// - Players gate + Apply Players
-// - Per-hole PAR inputs per round
-// - Front/Back/Total + Vs Par
-// - Print scorecard per round
-// - Correct handling of blank scoring (— instead of -par)
+// - Round selector + stats ribbon
+// - Players gate
+// - Per-hole PAR inputs
+// - Front/Back/Total + Vs Par (blank-safe)
+// - Print scorecard
+
+import * as courses from "./coursesStorage.js";
 
 export function renderPairingsFromModel(model) {
   renderPairings(model);
@@ -23,14 +25,12 @@ export function renderPairings(model) {
 
   const playersApplied = players.length > 0;
 
-  // Selected round index (store on model so it persists across tabs/saves)
   const selectedIdx =
     Number.isFinite(Number(model?.ui?.pairingsRoundIndex))
       ? Number(model.ui.pairingsRoundIndex)
       : 0;
 
   const safeSelectedIdx = Math.min(Math.max(selectedIdx, 0), Math.max(0, rounds.length - 1));
-
   const selectedRound = rounds[safeSelectedIdx];
 
   root.innerHTML = `
@@ -108,8 +108,9 @@ export function bindPairingsUI(model, { onChange } = {}) {
 
   if (!playersInput || !applyPlayersBtn || !addRoundBtn || !saveBtn || !defaultHolesEl || !playersPerGroupEl || !roundsContainer) return;
 
-  const emit = (next) => {
-    onChange?.(next);
+  // IMPORTANT: mark updates from Pairings to avoid re-render-jump while typing
+  const emit = (next, meta = { source: "pairings" }) => {
+    onChange?.(next, meta);
     return next;
   };
 
@@ -118,8 +119,6 @@ export function bindPairingsUI(model, { onChange } = {}) {
       .split("\n")
       .map(s => s.trim())
       .filter(Boolean);
-
-  const selectedIdx = Number.isFinite(Number(model?.ui?.pairingsRoundIndex)) ? Number(model.ui.pairingsRoundIndex) : 0;
 
   // Apply players
   applyPlayersBtn.addEventListener("click", () => {
@@ -132,7 +131,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
       rounds: Array.isArray(model?.rounds) ? model.rounds : [],
     };
     model = next;
-    emit(next);
+    emit(next, { source: "pairings-click" });
 
     renderPairings(model);
     bindPairingsUI(model, { onChange });
@@ -142,7 +141,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
   defaultHolesEl.addEventListener("change", () => {
     const next = { ...model, defaultHoles: Number(defaultHolesEl.value) || 18 };
     model = next;
-    emit(next);
+    emit(next, { source: "pairings-click" });
 
     renderPairings(model);
     bindPairingsUI(model, { onChange });
@@ -151,7 +150,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
   playersPerGroupEl.addEventListener("change", () => {
     const next = { ...model, playersPerGroup: Number(playersPerGroupEl.value) || 4 };
     model = next;
-    emit(next);
+    emit(next, { source: "pairings-click" });
   });
 
   // Round picker change
@@ -164,10 +163,100 @@ export function bindPairingsUI(model, { onChange } = {}) {
         ui: { ...(model.ui ?? {}), pairingsRoundIndex: Number.isFinite(idx) ? idx : 0 },
       };
       model = next;
-      emit(next);
+      emit(next, { source: "pairings-click" });
 
       renderPairings(model);
       bindPairingsUI(model, { onChange });
+    });
+  }
+
+  // Load course presets async (once) into model.ui.coursePresets
+  ensureCoursePresetsLoaded(model, emit);
+
+  // Course preset actions
+  const presetSelect = roundsContainer.querySelector("#coursePresetSelect");
+  const loadParBtn = roundsContainer.querySelector("#loadParPresetBtn");
+  const savePresetBtn = roundsContainer.querySelector("#saveParPresetBtn");
+
+  if (presetSelect) {
+    presetSelect.addEventListener("change", () => {
+      const next = {
+        ...model,
+        ui: { ...(model.ui ?? {}), selectedCoursePresetId: presetSelect.value || "" },
+      };
+      model = next;
+      emit(next, { source: "pairings-click" });
+    });
+  }
+
+  if (loadParBtn) {
+    loadParBtn.addEventListener("click", () => {
+      const rounds = Array.isArray(model?.rounds) ? [...model.rounds] : [];
+      const rIdx = Number(model?.ui?.pairingsRoundIndex ?? 0);
+      const r = rounds[rIdx];
+      if (!r) return;
+
+      const presets = Array.isArray(model?.ui?.coursePresets) ? model.ui.coursePresets : [];
+      const id = String(model?.ui?.selectedCoursePresetId ?? "").trim();
+      const preset = presets.find(p => p.id === id);
+      if (!preset) return;
+
+      const holes = Number(r.holes ?? model.defaultHoles ?? 18) || 18;
+      const newPar = normalizePar(preset.par, holes);
+
+      rounds[rIdx] = { ...r, par: newPar };
+
+      const next = { ...model, rounds };
+      model = next;
+      emit(next, { source: "pairings-click" });
+
+      renderPairings(model);
+      bindPairingsUI(model, { onChange });
+    });
+  }
+
+  if (savePresetBtn) {
+    savePresetBtn.addEventListener("click", async () => {
+      const rounds = Array.isArray(model?.rounds) ? model.rounds : [];
+      const rIdx = Number(model?.ui?.pairingsRoundIndex ?? 0);
+      const r = rounds[rIdx];
+      if (!r) return;
+
+      const holes = Number(r.holes ?? model.defaultHoles ?? 18) || 18;
+      const par = normalizePar(r.par, holes);
+
+      const suggested = String(r.course ?? "").trim() || `Course Preset ${holes}h`;
+      const name = window.prompt("Preset name (course name):", suggested);
+      if (!name) return;
+
+      try {
+        savePresetBtn.disabled = true;
+        savePresetBtn.textContent = "Saving…";
+
+        const saved = await courses.upsertCourseByName({ name, par });
+        // reload presets
+        const list = await courses.listCourses();
+
+        const next = {
+          ...model,
+          ui: {
+            ...(model.ui ?? {}),
+            coursePresets: list,
+            selectedCoursePresetId: saved.id,
+          },
+        };
+        model = next;
+        emit(next, { source: "pairings-click" });
+
+        renderPairings(model);
+        bindPairingsUI(model, { onChange });
+      } catch (e) {
+        console.error(e);
+        window.alert(`Failed to save preset: ${e?.message || e}`);
+      } finally {
+        savePresetBtn.disabled = false;
+        savePresetBtn.textContent = "Save preset from this round";
+      }
     });
   }
 
@@ -190,7 +279,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
     };
 
     model = next;
-    emit(next);
+    emit(next, { source: "pairings-click" });
 
     renderPairings(model);
     bindPairingsUI(model, { onChange });
@@ -198,7 +287,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
 
   // Save (cosmetic)
   saveBtn.addEventListener("click", () => {
-    emit(model);
+    emit(model, { source: "pairings-click" });
     saveBtn.textContent = "Saved ✓";
     window.setTimeout(() => (saveBtn.textContent = "Save"), 900);
   });
@@ -219,7 +308,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
         ui: { ...(model.ui ?? {}), pairingsRoundIndex: nextIdx },
       };
       model = next;
-      emit(next);
+      emit(next, { source: "pairings-click" });
 
       renderPairings(model);
       bindPairingsUI(model, { onChange });
@@ -248,7 +337,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
 
       const next = { ...model, rounds };
       model = next;
-      emit(next);
+      emit(next, { source: "pairings-click" });
 
       renderPairings(model);
       bindPairingsUI(model, { onChange });
@@ -263,7 +352,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
     }
   });
 
-  // Delegated inputs within selected round
+  // Delegated inputs within selected round (NO full rerender, just compute updates)
   roundsContainer.addEventListener("input", (e) => {
     const el = e.target;
     const roundCard = el.closest("[data-round-card]");
@@ -279,13 +368,13 @@ export function bindPairingsUI(model, { onChange } = {}) {
     if (el.matches("[data-round-title]")) {
       rounds[rIdx] = { ...r, title: el.value };
       model = { ...model, rounds };
-      emit(model);
+      emit(model, { source: "pairings" });
       return;
     }
     if (el.matches("[data-round-course]")) {
       rounds[rIdx] = { ...r, course: el.value };
       model = { ...model, rounds };
-      emit(model);
+      emit(model, { source: "pairings" });
       return;
     }
 
@@ -300,7 +389,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
 
       rounds[rIdx] = { ...r, holes, par };
       model = { ...model, rounds };
-      emit(model);
+      emit(model, { source: "pairings" });
 
       updateRoundComputed(roundCard, holes, par);
       updateStatsRibbon(roundsContainer, rounds[rIdx], model);
@@ -331,7 +420,7 @@ export function bindPairingsUI(model, { onChange } = {}) {
 
       rounds[rIdx] = { ...r, holes, par, groups };
       model = { ...model, rounds };
-      emit(model);
+      emit(model, { source: "pairings" });
 
       updateRoundComputed(roundCard, holes, par);
       updateStatsRibbon(roundsContainer, rounds[rIdx], model);
@@ -347,6 +436,25 @@ export function bindPairingsUI(model, { onChange } = {}) {
     const par = normalizePar(r?.par, holes);
     updateRoundComputed(selectedCard, holes, par);
     updateStatsRibbon(roundsContainer, r, model);
+  }
+}
+
+/* ---------------------------
+   Course presets loader
+---------------------------- */
+
+async function ensureCoursePresetsLoaded(model, emit) {
+  const ui = model?.ui ?? {};
+  if (ui._coursePresetsLoaded) return;
+
+  const next = { ...model, ui: { ...ui, _coursePresetsLoaded: true, coursePresets: ui.coursePresets ?? [] } };
+  emit(next, { source: "pairings-click" });
+
+  try {
+    const list = await courses.listCourses();
+    emit({ ...next, ui: { ...(next.ui ?? {}), coursePresets: list } }, { source: "pairings-click" });
+  } catch (e) {
+    console.error("[GolfTripPlanner] failed to load course presets", e);
   }
 }
 
@@ -376,6 +484,7 @@ function renderRoundPickerAndSelected(rounds, selectedIdx, selectedRound, model)
 
   const safeIdx = Math.min(Math.max(selectedIdx, 0), rounds.length - 1);
   const r = selectedRound ?? rounds[safeIdx];
+
   const holes = Number(r?.holes ?? model?.defaultHoles ?? 18) || 18;
   const par = normalizePar(r?.par, holes);
   const players = Array.isArray(model?.players) ? model.players : [];
@@ -383,6 +492,9 @@ function renderRoundPickerAndSelected(rounds, selectedIdx, selectedRound, model)
   const groups = Array.isArray(r?.groups) && r.groups.length ? r.groups : autoGroups(players, ppg, holes);
 
   const showBack = holes === 18;
+
+  const presets = Array.isArray(model?.ui?.coursePresets) ? model.ui.coursePresets : [];
+  const selectedPresetId = String(model?.ui?.selectedCoursePresetId ?? "").trim();
 
   const roundLabel = (rr, i) => {
     const t = String(rr?.title ?? `Round ${i + 1}`).trim();
@@ -401,13 +513,23 @@ function renderRoundPickerAndSelected(rounds, selectedIdx, selectedRound, model)
             </select>
           </label>
 
-          <div id="pairingsStats" class="stats-ribbon" aria-live="polite">
-            <!-- filled in by JS -->
+          <div class="field" style="margin:0; min-width:320px;">
+            <div class="field-label">Course presets (PAR)</div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <select id="coursePresetSelect" class="input" style="flex:1;">
+                <option value="">— Select a preset —</option>
+                ${presets.map(p => `<option value="${escapeHtml(p.id)}" ${p.id===selectedPresetId?"selected":""}>${escapeHtml(p.name)}</option>`).join("")}
+              </select>
+              <button id="loadParPresetBtn" class="btn" type="button" ${selectedPresetId ? "" : "disabled"}>Load PAR</button>
+            </div>
           </div>
+
+          <div id="pairingsStats" class="stats-ribbon" aria-live="polite"></div>
         </div>
 
         <div class="toolbar-right">
-          <button class="btn" type="button" data-print-round="${safeIdx}">Print scorecard</button>
+          <button id="saveParPresetBtn" class="btn" type="button">Save preset from this round</button>
+          <button class="btn" type="button" data-print-round="${safeIdx}">Print</button>
           <button class="btn" type="button" data-autogroup-round="${safeIdx}">Auto-group</button>
           <button class="btn" type="button" data-remove-round="${safeIdx}">Remove</button>
         </div>
@@ -530,7 +652,7 @@ function renderNineTable(label, gIdx, start, end, players, par, holesTotal) {
 }
 
 /* ---------------------------
-   Stats ribbon (computed on the selected round)
+   Stats ribbon
 ---------------------------- */
 
 function updateStatsRibbon(containerEl, round, model) {
@@ -551,26 +673,11 @@ function updateStatsRibbon(containerEl, round, model) {
   const status = completion.done ? "Final" : (completion.started ? "In progress" : "Not started");
 
   host.innerHTML = `
-    <div class="stat">
-      <div class="k">${players.length}</div>
-      <div class="l">Players</div>
-    </div>
-    <div class="stat">
-      <div class="k">${groupCount}</div>
-      <div class="l">Groups</div>
-    </div>
-    <div class="stat">
-      <div class="k">${holes}</div>
-      <div class="l">Holes</div>
-    </div>
-    <div class="stat">
-      <div class="k">${parTotal || "—"}</div>
-      <div class="l">Par</div>
-    </div>
-    <div class="stat">
-      <div class="k">${status}</div>
-      <div class="l">${completion.pct}% filled</div>
-    </div>
+    <div class="stat"><div class="k">${players.length}</div><div class="l">Players</div></div>
+    <div class="stat"><div class="k">${groupCount}</div><div class="l">Groups</div></div>
+    <div class="stat"><div class="k">${holes}</div><div class="l">Holes</div></div>
+    <div class="stat"><div class="k">${parTotal || "—"}</div><div class="l">Par</div></div>
+    <div class="stat"><div class="k">${status}</div><div class="l">${completion.pct}% filled</div></div>
   `;
 }
 
@@ -624,9 +731,7 @@ function autoGroups(players, playersPerGroup, holes) {
 
   for (let i = 0; i < ppl.length; i += size) {
     const slice = ppl.slice(i, i + size);
-    groups.push({
-      players: slice.map(name => ({ name, scores: new Array(holes).fill("") })),
-    });
+    groups.push({ players: slice.map(name => ({ name, scores: new Array(holes).fill("") })) });
   }
   if (!groups.length) groups.push({ players: [] });
   return groups;
@@ -645,7 +750,7 @@ function normalizePar(par, holes) {
 }
 
 /* ---------------------------
-   Totals + Vs Par rendering updates
+   Totals updates
 ---------------------------- */
 
 function updateRoundComputed(roundCardEl, holes, par) {
@@ -680,10 +785,7 @@ function updateRoundComputed(roundCardEl, holes, par) {
 
     const scores = byGP.get(`${g}|${p}`) ?? new Array(holes).fill("");
     const hasAny = scores.some(v => String(v ?? "").trim() !== "");
-    if (!hasAny) {
-      span.textContent = "—";
-      return;
-    }
+    if (!hasAny) { span.textContent = "—"; return; }
 
     const val = label.startsWith("Front")
       ? sumRange(scores, 0, Math.min(9, holes))
@@ -704,23 +806,17 @@ function updateRoundComputed(roundCardEl, holes, par) {
 
     const rows = frontBlock ? Array.from(frontBlock.querySelectorAll('tbody tr[data-player-row="1"]')) : [];
     const playersList = rows
-      .map(r => ({
-        pIdx: Number(r.getAttribute("data-player")),
-        name: (r.querySelector("td.player")?.textContent ?? "").trim(),
-      }))
+      .map(r => ({ pIdx: Number(r.getAttribute("data-player")), name: (r.querySelector("td.player")?.textContent ?? "").trim() }))
       .filter(x => Number.isFinite(x.pIdx));
 
-    if (!playersList.length) {
-      totalsHost.innerHTML = "";
-      return;
-    }
+    if (!playersList.length) { totalsHost.innerHTML = ""; return; }
 
     const rowsHtml = playersList.map(p => {
       const scores = byGP.get(`${gIdx}|${p.pIdx}`) ?? new Array(holes).fill("");
       const hasAnyScore = scores.some(v => String(v ?? "").trim() !== "");
 
       const front = hasAnyScore ? sumRange(scores, 0, Math.min(9, holes)) : null;
-      const back = (holes === 18) ? (hasAnyScore ? sumRange(scores, 9, 18) : null) : null;
+      const back  = (holes === 18) ? (hasAnyScore ? sumRange(scores, 9, 18) : null) : null;
       const total = hasAnyScore ? (Number(front || 0) + Number(back || 0)) : null;
 
       const vs = (hasAnyScore && parTotal > 0) ? (total - parTotal) : null;
@@ -756,9 +852,7 @@ function updateRoundComputed(roundCardEl, holes, par) {
               <th class="num">—</th>
             </tr>
           </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
+          <tbody>${rowsHtml}</tbody>
         </table>
       </div>
     `;

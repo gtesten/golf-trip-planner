@@ -4,21 +4,21 @@ import { supabase } from "./supabaseClient.js";
 const LS_TRIP_ID = "gtp_trip_id_v1";
 
 export async function ensureSession() {
-  // If already signed in, keep it.
   const { data: sess } = await supabase.auth.getSession();
   if (sess?.session?.user) return sess.session.user;
 
-  // Anonymous sign-in (requires Supabase Auth to allow anonymous)
-  // If your SDK version uses a different name, we’ll adjust, but this is the modern approach.
   const { data, error } = await supabase.auth.signInAnonymously();
   if (error) throw error;
   return data.user;
 }
 
+export function setActiveTripId(tripId) {
+  localStorage.setItem(LS_TRIP_ID, tripId);
+}
+
 export async function loadModel() {
   const user = await ensureSession();
 
-  // Try to load the selected trip id (cached locally)
   const tripId = localStorage.getItem(LS_TRIP_ID);
 
   if (tripId) {
@@ -32,7 +32,6 @@ export async function loadModel() {
     if (!error && data?.model) return normalizeModel(data.model, data.id);
   }
 
-  // Otherwise load most recently updated trip
   const { data: latest, error: latestErr } = await supabase
     .from("trips")
     .select("id, name, model")
@@ -42,11 +41,11 @@ export async function loadModel() {
     .maybeSingle();
 
   if (!latestErr && latest?.model) {
-    localStorage.setItem(LS_TRIP_ID, latest.id);
+    setActiveTripId(latest.id);
     return normalizeModel(latest.model, latest.id);
   }
 
-  // Create a new trip
+  // Create new trip
   const starter = normalizeModel({
     itineraryDays: [],
     players: [],
@@ -55,20 +54,8 @@ export async function loadModel() {
     playersPerGroup: 4,
   });
 
-  const { data: created, error: createErr } = await supabase
-    .from("trips")
-    .insert({
-      user_id: user.id,
-      name: "My Golf Trip",
-      model: starter,
-    })
-    .select("id, model")
-    .single();
-
-  if (createErr) throw createErr;
-
-  localStorage.setItem(LS_TRIP_ID, created.id);
-  return normalizeModel(created.model, created.id);
+  const created = await createTrip({ name: "My Golf Trip", model: starter });
+  return created;
 }
 
 export async function saveModel(model) {
@@ -83,9 +70,31 @@ export async function saveModel(model) {
     .from("trips")
     .update({ model: cleaned })
     .eq("id", tripId)
-    .eq("owner_id", user.id)
+    .eq("owner_id", user.id);
 
   if (error) throw error;
+}
+
+export async function createTrip({ name, model }) {
+  const user = await ensureSession();
+
+  const cleaned = { ...(model ?? {}) };
+  delete cleaned._tripId;
+
+  const { data, error } = await supabase
+    .from("trips")
+    .insert({
+      owner_id: user.id,
+      name: String(name ?? "Imported Trip").trim() || "Imported Trip",
+      model: cleaned,
+    })
+    .select("id, model")
+    .single();
+
+  if (error) throw error;
+
+  setActiveTripId(data.id);
+  return normalizeModel(data.model, data.id);
 }
 
 function normalizeModel(model, tripId) {
