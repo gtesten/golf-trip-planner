@@ -2,6 +2,7 @@
 import { supabase } from "./supabaseClient.js";
 import { ensureSession } from "./storage.js";
 
+// Returns [{id, name, par}]
 export async function listCourses() {
   const user = await ensureSession();
   const { data, error } = await supabase
@@ -11,7 +12,7 @@ export async function listCourses() {
     .order("name", { ascending: true });
 
   if (error) throw error;
-  return (data ?? []).map((c: { id: string; name: string; par: unknown; updated_at: string }) => ({
+  return (data ?? []).map((c) => ({
     id: c.id,
     name: c.name,
     par: Array.isArray(c.par) ? c.par : [],
@@ -19,12 +20,12 @@ export async function listCourses() {
   }));
 }
 
-export async function upsertCourseByName({ name, par }: { name: string; par: unknown }) {
+export async function upsertCourseByName({ name, par }) {
   const user = await ensureSession();
   const cleanName = String(name ?? "").trim();
   if (!cleanName) throw new Error("Course name is required");
 
-  const cleanPar = Array.isArray(par) ? par.map(v => (v === "" ? "" : Number(v))) : [];
+  const cleanPar = Array.isArray(par) ? par : [];
 
   const { data, error } = await supabase
     .from("courses")
