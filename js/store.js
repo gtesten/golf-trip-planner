@@ -1,5 +1,6 @@
 // js/store.js
 // Central model store with debounced autosave + toast hooks.
+// v2: meta support so UI can skip expensive rerenders while typing.
 
 let _model = null;
 let _subs = new Set();
@@ -17,15 +18,13 @@ export function getModel() {
 
 export function subscribe(fn) {
   _subs.add(fn);
-  // call immediately with current model
-  fn(_model);
+  fn(_model, { source: "init" });
   return () => _subs.delete(fn);
 }
 
-export function setModel(next, { autosave = true } = {}) {
+export function setModel(next, { autosave = true, meta = {} } = {}) {
   _model = next;
-  _subs.forEach(fn => fn(_model));
-
+  _subs.forEach(fn => fn(_model, meta));
   if (autosave) queueSave();
 }
 
@@ -46,5 +45,5 @@ function queueSave() {
       console.error("[GolfTripPlanner] autosave failed", e);
       window.dispatchEvent(new CustomEvent("gtp:save:status", { detail: { status: "error", error: String(e) } }));
     }
-  }, 600); // debounce
+  }, 600);
 }

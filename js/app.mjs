@@ -19,6 +19,26 @@ function safeCall(fn, ...args) {
   }
 }
 
+function isFocusInsidePairings() {
+  const active = document.activeElement;
+  const root = document.querySelector("#pairingsRoot");
+  return !!(active && root && root.contains(active));
+}
+
+function showBootError(err) {
+  console.error("[GolfTripPlanner] boot failed", err);
+  const el = document.createElement("div");
+  el.style.cssText =
+    "position:fixed;inset:0;background:#0b1220;color:#fff;padding:24px;z-index:99999;font-family:system-ui;overflow:auto;";
+  el.innerHTML = `
+    <h1 style="margin:0 0 12px;font-size:20px;">GolfTripPlanner failed to start</h1>
+    <pre style="white-space:pre-wrap;background:rgba(255,255,255,.06);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);">
+${String(err?.stack || err).replaceAll("<","&lt;").replaceAll(">","&gt;")}
+    </pre>
+  `;
+  document.body.appendChild(el);
+}
+
 async function boot() {
   initToast();
 
@@ -29,28 +49,25 @@ async function boot() {
     saveFn: storage.saveModel,
   });
 
-  // Re-render on any model change
-  subscribe((model) => {
-    safeCall(overview.renderOverview, model);
-    safeCall(itinerary.renderItinerary, model);
-    safeCall(pairings.renderPairings, model);
-    safeCall(tripDetails.renderTrip, model);
-  });
-
-  // Bind once per render pass, but re-bind after renders too (simple + reliable)
   const bindAll = (model) => {
-    safeCall(itinerary.bindItineraryUI, model, { onChange: (m) => setModel(m) });
-    safeCall(pairings.bindPairingsUI, model, { onChange: (m) => setModel(m) });
-    safeCall(tripDetails.bindTripUI, model, { onChange: (m) => setModel(m) });
-    safeCall(overview.bindOverviewUI, model, { onChange: (m) => setModel(m) });
+    safeCall(itinerary.bindItineraryUI, model, { onChange: (m) => setModel(m, { meta: { source: "itinerary" } }) });
+    safeCall(pairings.bindPairingsUI, model, { onChange: (m, meta) => setModel(m, { meta: meta ?? { source: "pairings" } }) });
+    safeCall(tripDetails.bindTripUI, model, { onChange: (m) => setModel(m, { meta: { source: "tripDetails" } }) });
+    safeCall(overview.bindOverviewUI, model, { onChange: (m) => setModel(m, { meta: { source: "overview" } }) });
   };
 
-  // initial bind after first render
-  bindAll(initialModel);
+  subscribe((model, meta = {}) => {
+    // Always keep these synced
+    safeCall(overview.renderOverview, model);
+    safeCall(itinerary.renderItinerary, model);
+    safeCall(tripDetails.renderTrip, model);
 
-  // Re-bind after each render tick (prevents null listener issues)
-  subscribe((model) => {
-    // small microtask to allow DOM to update
+    // Pairings: DO NOT rerender while typing in Pairings (prevents scroll-to-top)
+    const typingInPairings = meta?.source === "pairings" && isFocusInsidePairings();
+    if (!typingInPairings) {
+      safeCall(pairings.renderPairings, model);
+    }
+
     queueMicrotask(() => bindAll(model));
   });
 
@@ -58,7 +75,7 @@ async function boot() {
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", boot);
+  document.addEventListener("DOMContentLoaded", () => boot().catch(showBootError));
 } else {
-  boot();
+  boot().catch(showBootError);
 }

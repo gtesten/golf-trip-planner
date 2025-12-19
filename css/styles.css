@@ -1134,3 +1134,34 @@ body[data-print-round="3"] .round-card[data-round-card="3"]{ display:block; }
     justify-content: flex-start;
   }
 }
+/* ===========================
+   Pairings readability overrides
+   =========================== */
+
+#pairingsRoot .score-table,
+#pairingsRoot .totals-table{
+  color: rgba(15,23,42,.95) !important;
+}
+
+#pairingsRoot .score-table th,
+#pairingsRoot .score-table td,
+#pairingsRoot .totals-table th,
+#pairingsRoot .totals-table td{
+  color: rgba(15,23,42,.95) !important;
+}
+
+#pairingsRoot .score-table td.player,
+#pairingsRoot .score-table th.player,
+#pairingsRoot .totals-table td.player,
+#pairingsRoot .totals-table th.player{
+  color: rgba(15,23,42,.95) !important;
+}
+
+#pairingsRoot .scorecard-header,
+#pairingsRoot .table-title{
+  color: rgba(255,255,255,.92) !important;
+}
+
+#pairingsRoot .muted{
+  color: rgba(255,255,255,.75) !important;
+}
