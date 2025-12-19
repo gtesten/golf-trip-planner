@@ -1299,3 +1299,30 @@ body[data-print-round="3"] .round-card[data-round-card="3"]{ display:block; }
   .trip-switch{ width: 100%; }
   .input-compact{ flex: 1; min-width: 0; }
 }
+/* ===========================
+   Trip switcher alignment fix
+   =========================== */
+
+.trip-switch{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Ensure buttons never wrap text */
+.trip-switch .btn,
+.trip-switch .btn-compact{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;     /* 🔑 prevents "+ New" wrapping */
+  min-width: 72px;         /* enough room for "+ New" */
+  line-height: 1;
+}
+
+/* Slightly wider select so buttons align visually */
+.trip-switch .input-compact{
+  height: 38px;
+  padding: 8px 12px;
+  border-radius: 12px;
+}
