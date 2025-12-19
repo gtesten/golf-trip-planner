@@ -1170,4 +1170,109 @@ body[data-print-round="3"] .round-card[data-round-card="3"]{ display:block; }
 }
 #pairingsRoot #pairingsStats{
   min-width: 340px;
+}/* ===========================
+   TOP NAV TABS (new layout)
+   =========================== */
+
+.app-header{
+  display:flex;
+  align-items:flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 18px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: linear-gradient(180deg, rgba(5,10,20,.92), rgba(5,10,20,.72));
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(148,163,184,.18);
+}
+
+.brand{
+  display:flex;
+  gap: 12px;
+  align-items:center;
+  min-width: 220px;
+}
+.brand-mark{
+  width: 34px;
+  height: 34px;
+  display:grid;
+  place-items:center;
+  border-radius: 12px;
+  background: rgba(5,150,105,.18);
+  border: 1px solid rgba(5,150,105,.35);
+}
+.brand-title{
+  font-weight: 900;
+  color: rgba(255,255,255,.92);
+  line-height: 1.1;
+}
+.brand-subtitle{
+  font-weight: 700;
+  color: rgba(255,255,255,.62);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* Tabs container */
+.tabs{
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  padding: 8px;
+  border-radius: 18px;
+  border: 1px solid rgba(148,163,184,.18);
+  background: rgba(255,255,255,.06);
+}
+
+/* Buttons */
+.tabs .tab-btn{
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(255,255,255,.75);
+  font-weight: 900;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform .05s ease, background .12s ease, border-color .12s ease, color .12s ease;
+}
+
+.tabs .tab-btn:hover{
+  background: rgba(255,255,255,.08);
+  border-color: rgba(148,163,184,.18);
+  color: rgba(255,255,255,.88);
+}
+
+.tabs .tab-btn:active{
+  transform: translateY(1px);
+}
+
+/* Active tab */
+.tabs .tab-btn.is-active{
+  background: rgba(5,150,105,.18);
+  border-color: rgba(5,150,105,.40);
+  color: rgba(255,255,255,.95);
+}
+
+/* Panels */
+.tab-panel{
+  padding: 18px;
+}
+
+/* Mobile: header stacks */
+@media (max-width: 860px){
+  .app-header{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .brand{
+    min-width: 0;
+  }
+  .tabs{
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
 }
