@@ -8,6 +8,7 @@ import * as storage from "./storage.js";
 import * as tabs from "./tabs.js";
 import { initStore, subscribe, setModel } from "./store.js";
 import { initToast } from "./toast.js";
+import { initTripsUI } from "./tripsUI.js";
 
 console.log("[GolfTripPlanner] app boot", new Date().toISOString());
 
@@ -57,6 +58,7 @@ async function boot() {
     safeCall(overview.bindOverviewUI, model, { onChange: (m) => setModel(m, { meta: { source: "overview" } }) });
     safeCall(settings.bindSettingsUI, model, { onChange: (m) => setModel(m, { meta: { source: "settings" } }) });
   };
+  await initTripsUI();
 
   subscribe((model, meta = {}) => {
     safeCall(overview.renderOverview, model);

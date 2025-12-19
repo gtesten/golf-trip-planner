@@ -1276,3 +1276,26 @@ body[data-print-round="3"] .round-card[data-round-card="3"]{ display:block; }
     flex-wrap: wrap;
   }
 }
+/* Trip switcher in header */
+.trip-switch{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+.input-compact{
+  height: 38px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  min-width: 220px;
+}
+
+.btn-compact{
+  height: 38px;
+  padding: 8px 12px;
+  border-radius: 12px;
+}
+@media (max-width: 860px){
+  .trip-switch{ width: 100%; }
+  .input-compact{ flex: 1; min-width: 0; }
+}
